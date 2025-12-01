@@ -95,6 +95,7 @@ router.get('/availability/:date', auth, async (req, res) => {
  */
 router.get('/slot-status/:date', auth, async (req, res) => {
     const { date } = req.params;
+    const userId = req.user.id;
 
     if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
         return res.status(400).json({ message: 'Invalid date format. Use YYYY-MM-DD.' });
@@ -133,9 +134,21 @@ router.get('/slot-status/:date', auth, async (req, res) => {
             }
         }
 
-        // 3. Get all admin-blocked slots for this date
+        // 2.5. Get the current user's pending/approved reservations for this date
+        let userReservations = [];
+        try {
+            [userReservations] = await db.query(
+                `SELECT start_time, end_time, status FROM reservations 
+                 WHERE user_id = ? AND DATE(start_time) = ? AND status IN ('pending', 'approved')`,
+                [userId, date]
+            );
+        } catch (queryError) {
+            console.log('Note: Could not fetch user reservations');
+        }
+
+        // 3. Get all admin-blocked slots for this date (including reason)
         const [blockedSlots] = await db.query(
-            `SELECT blocked_start_time AS start_time, blocked_end_time AS end_time 
+            `SELECT blocked_start_time AS start_time, blocked_end_time AS end_time, reason 
              FROM blocked_dates 
              WHERE DATE(blocked_start_time) = ?`,
             [date]
@@ -163,13 +176,29 @@ router.get('/slot-status/:date', auth, async (req, res) => {
             const slotStart = new Date(`${date} ${slotTime}:00`);
             const slotEnd = new Date(slotStart.getTime() + 60 * 60 * 1000); // 1 hour slot
 
-            // Check if this slot is blocked
+            // Check if this slot is blocked and get the reason
             let isBlocked = false;
+            let blockReason = null;
             for (const block of blockedSlots) {
                 const blockStart = new Date(block.start_time);
                 const blockEnd = new Date(block.end_time);
                 if (slotStart < blockEnd && slotEnd > blockStart) {
                     isBlocked = true;
+                    blockReason = block.reason || 'Blocked by admin';
+                    break;
+                }
+            }
+
+            // Check if the current user has a pending or approved reservation for this slot
+            let hasUserReservation = false;
+            let userReservationStatus = null;
+            for (const userRes of userReservations) {
+                const userResStart = new Date(userRes.start_time);
+                const userResEnd = new Date(userRes.end_time);
+                // Check if this user's reservation overlaps with the slot
+                if (slotStart < userResEnd && slotEnd > userResStart) {
+                    hasUserReservation = true;
+                    userReservationStatus = userRes.status;
                     break;
                 }
             }
@@ -206,7 +235,10 @@ router.get('/slot-status/:date', auth, async (req, res) => {
                 maxCapacity,
                 isFull: totalOccupancy >= maxCapacity,
                 isBlocked,
-                availableSpots: Math.max(0, maxCapacity - totalOccupancy)
+                blockReason,
+                availableSpots: Math.max(0, maxCapacity - totalOccupancy),
+                hasUserReservation,
+                userReservationStatus
             });
         }
 
@@ -275,10 +307,10 @@ router.post('/request', auth, async (req, res) => {
             }
         }
 
-        // 0.5. Check if user already has a pending reservation for this time slot
-        const [existingPending] = await db.query(
-            `SELECT reservation_id, start_time, end_time FROM reservations 
-             WHERE user_id = ? AND status = 'pending' AND (
+        // 0.5. Check if user already has a pending or approved reservation for this time slot
+        const [existingReservation] = await db.query(
+            `SELECT reservation_id, start_time, end_time, status FROM reservations 
+             WHERE user_id = ? AND status IN ('pending', 'approved') AND (
                 (start_time < ? AND end_time > ?) OR
                 (start_time < ? AND end_time > ?) OR
                 (start_time = ? AND end_time = ?)
@@ -286,12 +318,21 @@ router.post('/request', auth, async (req, res) => {
             [userId, endDateTime, startDateTime, startDateTime, endDateTime, startDateTime, endDateTime]
         );
 
-        if (existingPending.length > 0) {
-            return res.status(409).json({ 
-                message: 'You already have a pending reservation request for this time slot. Please wait for admin approval.',
-                existingReservationId: existingPending[0].reservation_id,
-                isPendingConflict: true
-            });
+        if (existingReservation.length > 0) {
+            const existing = existingReservation[0];
+            if (existing.status === 'pending') {
+                return res.status(409).json({ 
+                    message: 'You already have a pending reservation request for this time slot. Please wait for admin approval.',
+                    existingReservationId: existing.reservation_id,
+                    isPendingConflict: true
+                });
+            } else {
+                return res.status(409).json({ 
+                    message: 'You already have an approved reservation for this time slot.',
+                    existingReservationId: existing.reservation_id,
+                    isApprovedConflict: true
+                });
+            }
         }
 
         // 1. Get pool settings for max capacity
@@ -781,18 +822,41 @@ router.get('/history', auth, async (req, res) => {
     const userId = req.user.id;
 
     try {
-        const sql = `
-            SELECT 
-                reservation_id,
-                start_time,
-                end_time,
-                status,
-                created_at
-            FROM reservations
-            WHERE user_id = ?
-            ORDER BY start_time DESC;
-        `;
-        const [history] = await db.query(sql, [userId]);
+        let history;
+        try {
+            const sql = `
+                SELECT 
+                    reservation_id,
+                    start_time,
+                    end_time,
+                    guests,
+                    status,
+                    created_at
+                FROM reservations
+                WHERE user_id = ?
+                ORDER BY start_time DESC;
+            `;
+            [history] = await db.query(sql, [userId]);
+        } catch (queryError) {
+            // Fallback if guests column doesn't exist
+            if (queryError.code === 'ER_BAD_FIELD_ERROR') {
+                const sql = `
+                    SELECT 
+                        reservation_id,
+                        start_time,
+                        end_time,
+                        1 as guests,
+                        status,
+                        created_at
+                    FROM reservations
+                    WHERE user_id = ?
+                    ORDER BY start_time DESC;
+                `;
+                [history] = await db.query(sql, [userId]);
+            } else {
+                throw queryError;
+            }
+        }
 
         res.json(history);
     } catch (error) {
@@ -1204,7 +1268,15 @@ router.get('/admin/all', adminAuth, async (req, res) => {
                     u.email
                 FROM reservations r
                 JOIN users u ON r.user_id = u.user_id
-                ORDER BY r.start_time DESC;
+                ORDER BY 
+                    CASE r.status 
+                        WHEN 'pending' THEN 0 
+                        WHEN 'approved' THEN 1 
+                        WHEN 'rejected' THEN 2 
+                        WHEN 'cancelled' THEN 3 
+                        ELSE 4 
+                    END ASC,
+                    r.created_at ASC;
             `;
             [allReservations] = await db.query(sql);
         } catch (queryError) {
@@ -1224,7 +1296,15 @@ router.get('/admin/all', adminAuth, async (req, res) => {
                         u.email
                     FROM reservations r
                     JOIN users u ON r.user_id = u.user_id
-                    ORDER BY r.start_time DESC;
+                    ORDER BY 
+                        CASE r.status 
+                            WHEN 'pending' THEN 0 
+                            WHEN 'approved' THEN 1 
+                            WHEN 'rejected' THEN 2 
+                            WHEN 'cancelled' THEN 3 
+                            ELSE 4 
+                        END ASC,
+                        r.created_at ASC;
                 `;
                 [allReservations] = await db.query(sql);
             } else {

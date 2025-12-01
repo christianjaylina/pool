@@ -141,6 +141,7 @@ router.put('/admin/status/:id', adminAuth, async (req, res) => {
 
         // 2. Update the is_active status in the database
         const newStatus = isActive ? 1 : 0; // Convert boolean to MySQL tinyint
+        
         await db.query('UPDATE users SET is_active = ? WHERE user_id = ?', [newStatus, id]);
 
         // 3. Log the Admin action

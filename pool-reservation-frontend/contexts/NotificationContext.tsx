@@ -13,13 +13,23 @@ export interface Notification {
   created_at: string;
 }
 
+interface PaginationInfo {
+  page: number;
+  limit: number;
+  total: number;
+  totalPages: number;
+  hasMore: boolean;
+}
+
 interface NotificationContextType {
   notifications: Notification[];
   unreadCount: number;
   markAsRead: (id: number) => void;
   markAllAsRead: () => void;
   refreshNotifications: () => void;
+  loadMore: () => void;
   isLoading: boolean;
+  pagination: PaginationInfo | null;
 }
 
 const NotificationContext = createContext<NotificationContextType | undefined>(undefined);
@@ -27,12 +37,13 @@ const NotificationContext = createContext<NotificationContextType | undefined>(u
 export function NotificationProvider({ children }: { children: ReactNode }) {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [pagination, setPagination] = useState<PaginationInfo | null>(null);
   const { user, isLoading: authLoading } = useAuth();
 
-  const unreadCount = notifications.filter(n => !n.read).length;
+  const unreadCount = (notifications || []).filter(n => !n.read).length;
 
   // Fetch notifications from API
-  const fetchNotifications = useCallback(async () => {
+  const fetchNotifications = useCallback(async (page: number = 1, append: boolean = false) => {
     if (!user) {
       setNotifications([]);
       setIsLoading(false);
@@ -41,11 +52,32 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
 
     try {
       setIsLoading(true);
-      const response = await notificationsApi.getAll();
-      setNotifications(response.data);
+      const response = await notificationsApi.getAll(page, 10);
+      
+      // Handle both old format (array) and new format (object with notifications and pagination)
+      let newNotifications: Notification[];
+      let paginationData: PaginationInfo | null = null;
+      
+      if (Array.isArray(response.data)) {
+        // Old API format - array of notifications
+        newNotifications = response.data;
+      } else {
+        // New API format - object with notifications and pagination
+        newNotifications = response.data.notifications || [];
+        paginationData = response.data.pagination || null;
+      }
+      
+      if (append) {
+        setNotifications(prev => [...(prev || []), ...newNotifications]);
+      } else {
+        setNotifications(newNotifications);
+      }
+      setPagination(paginationData);
     } catch (error) {
       console.error('Error fetching notifications:', error);
-      setNotifications([]);
+      if (!append) {
+        setNotifications([]);
+      }
     } finally {
       setIsLoading(false);
     }
@@ -71,8 +103,15 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
 
   // Refresh notifications (can be called manually)
   const refreshNotifications = useCallback(() => {
-    fetchNotifications();
+    fetchNotifications(1, false);
   }, [fetchNotifications]);
+
+  // Load more notifications
+  const loadMore = useCallback(() => {
+    if (pagination && pagination.hasMore && !isLoading) {
+      fetchNotifications(pagination.page + 1, true);
+    }
+  }, [pagination, isLoading, fetchNotifications]);
 
   const markAsRead = async (id: number) => {
     try {
@@ -101,7 +140,9 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
       markAsRead, 
       markAllAsRead,
       refreshNotifications,
-      isLoading 
+      loadMore,
+      isLoading,
+      pagination
     }}>
       {children}
     </NotificationContext.Provider>

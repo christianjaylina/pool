@@ -6,13 +6,24 @@ const auth = require('../middleware/auth');
 
 /**
  * @route GET /api/notifications
- * @description Get all notifications for the logged-in user
+ * @description Get notifications for the logged-in user with pagination
  * @access Private (User)
  */
 router.get('/', auth, async (req, res) => {
     const userId = req.user.id;
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
+    const offset = (page - 1) * limit;
 
     try {
+        // Get total count for pagination
+        const [countResult] = await db.query(
+            'SELECT COUNT(*) as total FROM notifications WHERE user_id = ?',
+            [userId]
+        );
+        const total = countResult[0].total;
+        const totalPages = Math.ceil(total / limit);
+
         const [notifications] = await db.query(
             `SELECT 
                 notification_id as id,
@@ -22,8 +33,9 @@ router.get('/', auth, async (req, res) => {
                 created_at
             FROM notifications 
             WHERE user_id = ? 
-            ORDER BY created_at DESC`,
-            [userId]
+            ORDER BY created_at DESC
+            LIMIT ? OFFSET ?`,
+            [userId, limit, offset]
         );
 
         // Parse notifications to add type and title based on message content
@@ -57,7 +69,16 @@ router.get('/', auth, async (req, res) => {
             };
         });
 
-        res.json(parsedNotifications);
+        res.json({
+            notifications: parsedNotifications,
+            pagination: {
+                page,
+                limit,
+                total,
+                totalPages,
+                hasMore: page < totalPages
+            }
+        });
     } catch (error) {
         console.error('Error fetching notifications:', error);
         res.status(500).json({ message: 'Server error while fetching notifications.' });

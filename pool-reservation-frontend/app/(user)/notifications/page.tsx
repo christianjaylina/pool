@@ -1,13 +1,13 @@
 'use client';
 
 import { format } from 'date-fns';
-import { Bell, Check, CheckCheck, Calendar, Info, AlertCircle, X } from 'lucide-react';
+import { Bell, Check, CheckCheck, Calendar, Info, AlertCircle, X, Loader2 } from 'lucide-react';
 import { Card, CardHeader, Button, Badge } from '@/components/ui';
 import { useNotifications } from '@/contexts/NotificationContext';
 import { useState } from 'react';
 
 export default function NotificationsPage() {
-  const { notifications, unreadCount, markAsRead, markAllAsRead } = useNotifications();
+  const { notifications, unreadCount, markAsRead, markAllAsRead, loadMore, isLoading, pagination } = useNotifications();
   const [filter, setFilter] = useState<'all' | 'unread'>('all');
 
   const filteredNotifications = filter === 'all' 
@@ -131,6 +131,33 @@ export default function NotificationsPage() {
           </div>
         )}
       </Card>
+
+      {/* Load More Button */}
+      {pagination && pagination.hasMore && (
+        <div className="flex justify-center">
+          <Button
+            variant="outline"
+            onClick={loadMore}
+            disabled={isLoading}
+          >
+            {isLoading ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Loading...
+              </>
+            ) : (
+              `Load More (${pagination.total - notifications.length} remaining)`
+            )}
+          </Button>
+        </div>
+      )}
+
+      {/* Pagination Info */}
+      {pagination && (
+        <p className="text-center text-sm text-gray-500">
+          Showing {notifications.length} of {pagination.total} notifications
+        </p>
+      )}
     </div>
   );
 }

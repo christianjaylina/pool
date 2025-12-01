@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { format } from 'date-fns';
-import { Calendar, Clock, Users, X, RotateCcw, Loader2 } from 'lucide-react';
+import { Calendar, Clock, Users, X, Loader2 } from 'lucide-react';
 import { Card, CardHeader, Badge, Button, Modal, Input, Table } from '@/components/ui';
 import { reservationsApi } from '@/lib/api';
 
@@ -38,7 +38,6 @@ export default function MyReservationsPage() {
   const [error, setError] = useState<string | null>(null);
   const [selectedReservation, setSelectedReservation] = useState<Reservation | null>(null);
   const [showCancelModal, setShowCancelModal] = useState(false);
-  const [showRescheduleModal, setShowRescheduleModal] = useState(false);
   const [filter, setFilter] = useState<string>('all');
   const [cancelling, setCancelling] = useState(false);
 
@@ -84,7 +83,17 @@ export default function MyReservationsPage() {
     }
   };
 
-  const getStatusBadge = (status: string) => {
+  const getStatusBadge = (status: string, isPast: boolean = false) => {
+    // Show Completed/Expired for past reservations
+    if (isPast) {
+      if (status === 'approved') {
+        return <Badge variant="default">Completed</Badge>;
+      }
+      if (status === 'pending') {
+        return <Badge variant="default">Expired</Badge>;
+      }
+    }
+    
     const variants: Record<string, 'success' | 'warning' | 'danger' | 'default'> = {
       approved: 'success',
       pending: 'warning',
@@ -94,9 +103,32 @@ export default function MyReservationsPage() {
     return <Badge variant={variants[status]}>{status.charAt(0).toUpperCase() + status.slice(1)}</Badge>;
   };
 
+  // Sort reservations: active first (pending > approved), past at bottom
+  const sortedReservations = [...reservations].sort((a, b) => {
+    const aPast = isPastReservation(a.end_time);
+    const bPast = isPastReservation(b.end_time);
+    
+    // Past reservations go to bottom
+    if (aPast && !bPast) return 1;
+    if (!aPast && bPast) return -1;
+    
+    // If both are past or both are not past, sort by status priority then date
+    const statusOrder: Record<string, number> = { pending: 0, approved: 1, rejected: 2, cancelled: 3 };
+    const aOrder = statusOrder[a.status] ?? 4;
+    const bOrder = statusOrder[b.status] ?? 4;
+    
+    if (aOrder !== bOrder) return aOrder - bOrder;
+    
+    // Same status, sort by start_time (upcoming first for active, recent first for past)
+    if (aPast) {
+      return new Date(b.start_time).getTime() - new Date(a.start_time).getTime();
+    }
+    return new Date(a.start_time).getTime() - new Date(b.start_time).getTime();
+  });
+
   const filteredReservations = filter === 'all' 
-    ? reservations 
-    : reservations.filter(r => r.status === filter);
+    ? sortedReservations 
+    : sortedReservations.filter(r => r.status === filter);
 
   const upcomingReservations = reservations.filter(
     r => r.status === 'approved' && new Date(r.start_time) >= new Date()
@@ -226,51 +258,56 @@ export default function MyReservationsPage() {
               key: 'date', 
               header: 'Date', 
               sortable: true,
-              render: (r) => (
-                <span className={isPastReservation(r.end_time) ? 'line-through text-gray-400' : ''}>
-                  {format(new Date(r.start_time), 'MMM d, yyyy')}
-                </span>
-              )
+              render: (r) => {
+                const isPast = isPastReservation(r.end_time);
+                return (
+                  <span className={isPast ? 'text-gray-400' : ''}>
+                    {format(new Date(r.start_time), 'MMM d, yyyy')}
+                  </span>
+                );
+              }
             },
             { 
               key: 'time', 
               header: 'Time', 
-              render: (r) => (
-                <span className={isPastReservation(r.end_time) ? 'line-through text-gray-400' : ''}>
-                  {formatTimeToAMPM(r.start_time)} - {formatTimeToAMPM(r.end_time)}
-                </span>
-              )
+              render: (r) => {
+                const isPast = isPastReservation(r.end_time);
+                return (
+                  <span className={isPast ? 'text-gray-400' : ''}>
+                    {formatTimeToAMPM(r.start_time)} - {formatTimeToAMPM(r.end_time)}
+                  </span>
+                );
+              }
             },
             { 
               key: 'guests', 
               header: 'Guests', 
               sortable: true,
-              render: (r) => (
-                <span className={isPastReservation(r.end_time) ? 'line-through text-gray-400' : ''}>
-                  {r.guests || '-'}
-                </span>
-              )
+              render: (r) => {
+                const isPast = isPastReservation(r.end_time);
+                return (
+                  <div className={`flex items-center gap-1.5 ${isPast ? 'text-gray-400' : ''}`}>
+                    <Users className="h-4 w-4" />
+                    <span className="font-medium">{r.guests || 1}</span>
+                  </div>
+                );
+              }
             },
             { 
               key: 'status', 
               header: 'Status', 
-              render: (r) => (
-                <span className={isPastReservation(r.end_time) ? 'opacity-50' : ''}>
-                  {getStatusBadge(r.status)}
-                </span>
-              )
+              render: (r) => {
+                const isPast = isPastReservation(r.end_time);
+                return getStatusBadge(r.status, isPast);
+              }
             },
             {
               key: 'actions',
               header: 'Actions',
               render: (r) => {
-                // If past reservation, show "Completed" or no action
+                // If past reservation, show dash
                 if (isPastReservation(r.end_time)) {
-                  return (
-                    <span className="text-sm text-gray-400 italic">
-                      {r.status === 'approved' ? 'Completed' : '-'}
-                    </span>
-                  );
+                  return <span className="text-sm text-gray-400">-</span>;
                 }
                 
                 // For future reservations, show cancel option
@@ -334,33 +371,6 @@ export default function MyReservationsPage() {
               loading={cancelling}
             >
               Cancel Reservation
-            </Button>
-          </div>
-        </div>
-      </Modal>
-
-      {/* Reschedule Modal */}
-      <Modal
-        isOpen={showRescheduleModal}
-        onClose={() => setShowRescheduleModal(false)}
-        title="Reschedule Reservation"
-        size="lg"
-      >
-        <div className="space-y-4">
-          <p className="text-gray-600">
-            Select a new date and time for your reservation.
-          </p>
-          <Input type="date" label="New Date" />
-          <div className="grid grid-cols-2 gap-4">
-            <Input type="time" label="Start Time" />
-            <Input type="time" label="End Time" />
-          </div>
-          <div className="flex gap-3">
-            <Button variant="outline" className="flex-1" onClick={() => setShowRescheduleModal(false)}>
-              Cancel
-            </Button>
-            <Button className="flex-1">
-              Submit Request
             </Button>
           </div>
         </div>

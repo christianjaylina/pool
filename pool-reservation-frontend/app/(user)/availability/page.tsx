@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { format, isToday, isBefore, startOfDay } from 'date-fns';
-import { Calendar as CalendarIcon, Clock, Users, ArrowRight, Info, RefreshCw } from 'lucide-react';
+import { Calendar as CalendarIcon, Clock, Users, ArrowRight, Info, RefreshCw, Ban, CalendarCheck } from 'lucide-react';
 import { Card, CardHeader, Calendar, TimeSlotPicker, Button, Select, Modal, Input } from '@/components/ui';
 import { poolApi, reservationsApi, usersApi } from '@/lib/api';
 
@@ -11,10 +11,13 @@ interface TimeSlot {
   available: boolean;
   isFull?: boolean;
   isBlocked?: boolean;
+  blockReason?: string | null;
   availableSpots?: number;
   currentGuests?: number;
   lessonParticipants?: number;
   maxCapacity?: number;
+  hasUserReservation?: boolean;
+  userReservationStatus?: string | null;
 }
 
 interface SlotStatus {
@@ -25,7 +28,10 @@ interface SlotStatus {
   maxCapacity: number;
   isFull: boolean;
   isBlocked: boolean;
+  blockReason?: string | null;
   availableSpots: number;
+  hasUserReservation?: boolean;
+  userReservationStatus?: string | null;
 }
 
 interface PoolSettings {
@@ -87,6 +93,8 @@ export default function AvailabilityPage() {
   const [loadingSlots, setLoadingSlots] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [userMaxGuests, setUserMaxGuests] = useState<number | null>(null);
+  const [showBlockedModal, setShowBlockedModal] = useState(false);
+  const [blockedSlotInfo, setBlockedSlotInfo] = useState<{ time: string; reason: string } | null>(null);
 
   // Fetch pool settings and user profile on mount
   useEffect(() => {
@@ -182,16 +190,30 @@ export default function AvailabilityPage() {
       
       return {
         ...slot,
-        available: timeAvailable && !slotStatus?.isFull && !slotStatus?.isBlocked,
+        available: timeAvailable && !slotStatus?.isFull && !slotStatus?.isBlocked && !slotStatus?.hasUserReservation,
         isFull: slotStatus?.isFull || false,
         isBlocked: slotStatus?.isBlocked || false,
+        blockReason: slotStatus?.blockReason || null,
         availableSpots: slotStatus?.availableSpots,
         currentGuests: slotStatus?.currentGuests,
         lessonParticipants: slotStatus?.lessonParticipants,
-        maxCapacity: slotStatus?.maxCapacity
+        maxCapacity: slotStatus?.maxCapacity,
+        hasUserReservation: slotStatus?.hasUserReservation || false,
+        userReservationStatus: slotStatus?.userReservationStatus || null
       };
     });
   }, [selectedDate, currentTime, slotStatuses]);
+
+  // Handle blocked slot click
+  const handleBlockedSlotClick = (slot: TimeSlot) => {
+    if (slot.isBlocked) {
+      setBlockedSlotInfo({
+        time: slot.time,
+        reason: slot.blockReason || 'This time slot has been blocked by the administrator.'
+      });
+      setShowBlockedModal(true);
+    }
+  };
 
   const durationOptions = [
     { value: '1', label: '1 Hour' },
@@ -276,12 +298,16 @@ export default function AvailabilityPage() {
           <span className="text-gray-600">Full</span>
         </div>
         <div className="flex items-center gap-2">
-          <div className="w-4 h-4 rounded bg-gray-200"></div>
-          <span className="text-gray-600">Blocked</span>
+          <div className="w-4 h-4 rounded bg-gray-200 border border-gray-300"></div>
+          <span className="text-gray-600">Blocked (click for details)</span>
         </div>
         <div className="flex items-center gap-2">
           <div className="w-4 h-4 rounded bg-gray-100"></div>
           <span className="text-gray-600">Past/Unavailable</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <div className="w-4 h-4 rounded bg-primary-100 border border-primary-300"></div>
+          <span className="text-gray-600">Your Reservation</span>
         </div>
       </div>
 
@@ -344,6 +370,7 @@ export default function AvailabilityPage() {
                 onSelect={setSelectedTime}
                 formatTime={formatTimeToAMPM}
                 showCapacity={true}
+                onBlockedClick={handleBlockedSlotClick}
               />
             )}
           </Card>
@@ -401,6 +428,53 @@ export default function AvailabilityPage() {
           )}
         </div>
       </div>
+
+      {/* Blocked Slot Reason Modal */}
+      <Modal
+        isOpen={showBlockedModal}
+        onClose={() => {
+          setShowBlockedModal(false);
+          setBlockedSlotInfo(null);
+        }}
+        title="Time Slot Blocked"
+      >
+        <div className="space-y-4">
+          <div className="flex items-center gap-3 p-4 bg-gray-100 rounded-xl">
+            <div className="w-12 h-12 bg-gray-200 rounded-full flex items-center justify-center flex-shrink-0">
+              <Ban className="h-6 w-6 text-gray-600" />
+            </div>
+            <div>
+              <p className="font-medium text-gray-900">
+                {blockedSlotInfo ? formatTimeToAMPM(blockedSlotInfo.time) : ''} is unavailable
+              </p>
+              <p className="text-sm text-gray-500">
+                {format(selectedDate, 'EEEE, MMMM d, yyyy')}
+              </p>
+            </div>
+          </div>
+          
+          <div className="p-4 bg-amber-50 border border-amber-200 rounded-xl">
+            <p className="text-sm font-medium text-amber-800 mb-1">Reason:</p>
+            <p className="text-amber-700">
+              {blockedSlotInfo?.reason || 'Blocked by administrator'}
+            </p>
+          </div>
+
+          <p className="text-sm text-gray-500">
+            Please select a different time slot for your reservation.
+          </p>
+
+          <Button
+            className="w-full"
+            onClick={() => {
+              setShowBlockedModal(false);
+              setBlockedSlotInfo(null);
+            }}
+          >
+            Close
+          </Button>
+        </div>
+      </Modal>
 
       {/* Confirmation Modal */}
       <Modal

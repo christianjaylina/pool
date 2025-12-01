@@ -98,7 +98,7 @@ export const poolApi = {
 
 // Notifications API
 export const notificationsApi = {
-  getAll: () => api.get('/notifications'),
+  getAll: (page: number = 1, limit: number = 10) => api.get(`/notifications?page=${page}&limit=${limit}`),
   markRead: (id: number) => api.put(`/notifications/${id}/read`),
   markAllRead: () => api.put('/notifications/read-all'),
 };

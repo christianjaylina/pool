@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { format, isPast } from 'date-fns';
-import { Check, X, RefreshCw, Ban, Users, Plus } from 'lucide-react';
+import { Check, X, RefreshCw, Ban, Users, Plus, Clock } from 'lucide-react';
 import { Card, CardHeader, Table, Badge, Button, Modal } from '@/components/ui';
 import { reservationsApi, usersApi } from '@/lib/api';
 
@@ -16,7 +16,7 @@ interface Reservation {
   end_time: string;
   guests: number;
   status: 'pending' | 'approved' | 'rejected' | 'cancelled';
-  requested_at: string;
+  created_at: string;
 }
 
 interface User {
@@ -153,9 +153,32 @@ export default function AdminReservationsPage() {
     return <Badge variant={variants[status] || 'default'}>{status.charAt(0).toUpperCase() + status.slice(1)}</Badge>;
   };
 
-  const filteredReservations = filter === 'all'
+  // Filter reservations by status, then sort: active first (pending > approved > rejected > cancelled), past at bottom
+  const filteredReservations = (filter === 'all'
     ? reservations
-    : reservations.filter(r => r.status === filter);
+    : reservations.filter(r => r.status === filter)
+  ).sort((a, b) => {
+    const aPast = isReservationPast(a.end_time);
+    const bPast = isReservationPast(b.end_time);
+    
+    // Past reservations go to bottom
+    if (aPast && !bPast) return 1;
+    if (!aPast && bPast) return -1;
+    
+    // If both are past or both are not past, sort by status priority then created_at
+    if (aPast === bPast) {
+      const statusOrder: Record<string, number> = { pending: 0, approved: 1, rejected: 2, cancelled: 3 };
+      const aOrder = statusOrder[a.status] ?? 4;
+      const bOrder = statusOrder[b.status] ?? 4;
+      
+      if (aOrder !== bOrder) return aOrder - bOrder;
+      
+      // Same status, sort by created_at (earliest first)
+      return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+    }
+    
+    return 0;
+  });
 
   const handleApprove = async (id: number) => {
     try {
@@ -334,6 +357,24 @@ export default function AdminReservationsPage() {
                   <span className={past ? 'line-through text-gray-400' : 'text-gray-600'}>
                     {r.email}
                   </span>
+                );
+              }
+            },
+            { 
+              key: 'created_at', 
+              header: 'Requested At', 
+              sortable: true,
+              render: (r) => {
+                const past = isReservationPast(r.end_time);
+                const requestedDate = new Date(r.created_at);
+                return (
+                  <div className={`flex items-center gap-1.5 ${past ? 'text-gray-400' : 'text-gray-600'}`}>
+                    <Clock className="h-3.5 w-3.5" />
+                    <span className="text-xs">
+                      {format(requestedDate, 'MMM d, yyyy')}<br />
+                      {format(requestedDate, 'h:mm a')}
+                    </span>
+                  </div>
                 );
               }
             },

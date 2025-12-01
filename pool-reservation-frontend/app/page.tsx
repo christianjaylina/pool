@@ -40,46 +40,49 @@ export default function HomePage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-primary-600 to-primary-800">
       {/* Navigation */}
-      <nav className="px-6 py-4">
+      <nav className="px-4 sm:px-6 py-4">
         <div className="max-w-7xl mx-auto flex items-center justify-between">
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 sm:gap-3">
             <Image
               src="/images/logo/logo.png"
               alt="Luxuria Bacaca Resort Logo"
               width={45}
               height={45}
-              className="rounded-xl"
+              className="rounded-xl w-9 h-9 sm:w-[45px] sm:h-[45px]"
             />
-            <span className="text-xl font-bold text-white">Luxuria Bacaca Resort</span>
+            <span className="text-lg sm:text-xl font-bold text-white hidden xs:inline">Luxuria Bacaca Resort</span>
+            <span className="text-lg font-bold text-white xs:hidden">Luxuria</span>
           </div>
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2 sm:gap-4">
             {isLoading ? (
               <div className="w-20 h-8 bg-white/20 rounded animate-pulse" />
             ) : user ? (
               <>
-                <div className="flex items-center gap-2 px-3 py-1.5 bg-white/10 rounded-lg">
+                <div className="flex items-center gap-1.5 sm:gap-2 px-2 sm:px-3 py-1.5 bg-white/10 rounded-lg">
                   <User className="h-4 w-4 text-white/80" />
-                  <span className="text-sm font-medium text-white">Hi, {user.fName}</span>
+                  <span className="text-xs sm:text-sm font-medium text-white">
+                    <span className="hidden sm:inline">Hi, </span>{user.fName}
+                  </span>
                 </div>
                 <button
                   onClick={logout}
-                  className="px-4 py-2 text-sm font-medium text-white/90 hover:text-white transition-colors flex items-center gap-2"
+                  className="px-2 sm:px-4 py-2 text-xs sm:text-sm font-medium text-white/90 hover:text-white transition-colors flex items-center gap-1 sm:gap-2"
                 >
                   <LogOut className="h-4 w-4" />
-                  Logout
+                  <span className="hidden sm:inline">Logout</span>
                 </button>
               </>
             ) : (
               <>
                 <Link
                   href="/login"
-                  className="px-4 py-2 text-sm font-medium text-white/90 hover:text-white transition-colors"
+                  className="px-3 sm:px-4 py-2 text-xs sm:text-sm font-medium text-white/90 hover:text-white transition-colors"
                 >
                   Login
                 </Link>
                 <Link
                   href="/register"
-                  className="px-4 py-2 text-sm font-medium bg-white text-primary-700 rounded-lg hover:bg-white/90 transition-colors"
+                  className="px-3 sm:px-4 py-2 text-xs sm:text-sm font-medium bg-white text-primary-700 rounded-lg hover:bg-white/90 transition-colors"
                 >
                   Register
                 </Link>

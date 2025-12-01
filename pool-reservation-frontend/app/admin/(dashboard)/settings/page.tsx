@@ -13,12 +13,27 @@ interface PoolSettings {
   max_people_slot_4: number;
 }
 
+// Input values stored as strings to allow proper editing
+interface InputValues {
+  max_people_slot_1: string;
+  max_people_slot_2: string;
+  max_people_slot_3: string;
+  max_people_slot_4: string;
+}
+
 export default function AdminSettingsPage() {
   const [settings, setSettings] = useState<PoolSettings>({
     max_people_slot_1: 10,
     max_people_slot_2: 10,
     max_people_slot_3: 10,
     max_people_slot_4: 10,
+  });
+  // Separate state for input values (as strings for better UX)
+  const [inputValues, setInputValues] = useState<InputValues>({
+    max_people_slot_1: '10',
+    max_people_slot_2: '10',
+    max_people_slot_3: '10',
+    max_people_slot_4: '10',
   });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -30,6 +45,13 @@ export default function AdminSettingsPage() {
       setLoading(true);
       const response = await poolApi.getSettings();
       setSettings(response.data);
+      // Also update input values as strings
+      setInputValues({
+        max_people_slot_1: String(response.data.max_people_slot_1 || 10),
+        max_people_slot_2: String(response.data.max_people_slot_2 || 10),
+        max_people_slot_3: String(response.data.max_people_slot_3 || 10),
+        max_people_slot_4: String(response.data.max_people_slot_4 || 10),
+      });
     } catch (err) {
       console.error('Error fetching settings:', err);
       setError('Failed to load settings');
@@ -46,27 +68,25 @@ export default function AdminSettingsPage() {
     setError('');
     setSuccess('');
 
-    // Validate all values are positive integers
-    const values = [
-      settings.max_people_slot_1,
-      settings.max_people_slot_2,
-      settings.max_people_slot_3,
-      settings.max_people_slot_4,
-    ];
+    // Convert string inputs to numbers for validation and saving
+    const values = {
+      max_people_slot_1: parseInt(inputValues.max_people_slot_1) || 0,
+      max_people_slot_2: parseInt(inputValues.max_people_slot_2) || 0,
+      max_people_slot_3: parseInt(inputValues.max_people_slot_3) || 0,
+      max_people_slot_4: parseInt(inputValues.max_people_slot_4) || 0,
+    };
 
-    if (values.some(v => !Number.isInteger(v) || v < 1)) {
-      setError('All capacity values must be positive whole numbers');
+    // Validate all values are positive integers
+    const allValues = Object.values(values);
+    if (allValues.some(v => !Number.isInteger(v) || v < 1)) {
+      setError('All capacity values must be positive whole numbers (at least 1)');
       return;
     }
 
     try {
       setSaving(true);
-      await poolApi.updateSettings({
-        max_people_slot_1: settings.max_people_slot_1,
-        max_people_slot_2: settings.max_people_slot_2,
-        max_people_slot_3: settings.max_people_slot_3,
-        max_people_slot_4: settings.max_people_slot_4,
-      });
+      await poolApi.updateSettings(values);
+      setSettings(values as PoolSettings);
       setSuccess('Settings updated successfully!');
       setTimeout(() => setSuccess(''), 3000);
     } catch (err: any) {
@@ -76,20 +96,23 @@ export default function AdminSettingsPage() {
     }
   };
 
-  const handleInputChange = (field: keyof PoolSettings, value: string) => {
-    const numValue = parseInt(value) || 0;
-    setSettings(prev => ({ ...prev, [field]: numValue }));
+  const handleInputChange = (field: keyof InputValues, value: string) => {
+    // Allow empty string or numbers only
+    if (value === '' || /^\d+$/.test(value)) {
+      setInputValues(prev => ({ ...prev, [field]: value }));
+    }
   };
 
   // Apply same value to all slots
-  const applyToAll = (value: number) => {
-    setSettings({
-      ...settings,
-      max_people_slot_1: value,
-      max_people_slot_2: value,
-      max_people_slot_3: value,
-      max_people_slot_4: value,
-    });
+  const applyToAll = (value: string) => {
+    if (value === '' || /^\d+$/.test(value)) {
+      setInputValues({
+        max_people_slot_1: value,
+        max_people_slot_2: value,
+        max_people_slot_3: value,
+        max_people_slot_4: value,
+      });
+    }
   };
 
   if (loading) {
@@ -148,12 +171,13 @@ export default function AdminSettingsPage() {
               <div className="flex items-center gap-2">
                 <Input
                   id="quickSet"
-                  type="number"
-                  min={1}
-                  max={100}
-                  value={settings.max_people_slot_1}
-                  onChange={(e) => applyToAll(parseInt(e.target.value) || 1)}
+                  type="text"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
+                  value={inputValues.max_people_slot_1}
+                  onChange={(e) => applyToAll(e.target.value)}
                   className="w-24"
+                  placeholder="10"
                 />
                 <span className="text-sm text-gray-500">guests</span>
               </div>
@@ -176,11 +200,12 @@ export default function AdminSettingsPage() {
               <div className="flex items-center gap-2">
                 <Input
                   id="slot1"
-                  type="number"
-                  min={1}
-                  max={100}
-                  value={settings.max_people_slot_1}
+                  type="text"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
+                  value={inputValues.max_people_slot_1}
                   onChange={(e) => handleInputChange('max_people_slot_1', e.target.value)}
+                  placeholder="10"
                 />
                 <span className="text-sm text-gray-500 whitespace-nowrap">max guests</span>
               </div>
@@ -200,11 +225,12 @@ export default function AdminSettingsPage() {
               <div className="flex items-center gap-2">
                 <Input
                   id="slot2"
-                  type="number"
-                  min={1}
-                  max={100}
-                  value={settings.max_people_slot_2}
+                  type="text"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
+                  value={inputValues.max_people_slot_2}
                   onChange={(e) => handleInputChange('max_people_slot_2', e.target.value)}
+                  placeholder="10"
                 />
                 <span className="text-sm text-gray-500 whitespace-nowrap">max guests</span>
               </div>
@@ -224,11 +250,12 @@ export default function AdminSettingsPage() {
               <div className="flex items-center gap-2">
                 <Input
                   id="slot3"
-                  type="number"
-                  min={1}
-                  max={100}
-                  value={settings.max_people_slot_3}
+                  type="text"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
+                  value={inputValues.max_people_slot_3}
                   onChange={(e) => handleInputChange('max_people_slot_3', e.target.value)}
+                  placeholder="10"
                 />
                 <span className="text-sm text-gray-500 whitespace-nowrap">max guests</span>
               </div>
@@ -248,11 +275,12 @@ export default function AdminSettingsPage() {
               <div className="flex items-center gap-2">
                 <Input
                   id="slot4"
-                  type="number"
-                  min={1}
-                  max={100}
-                  value={settings.max_people_slot_4}
+                  type="text"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
+                  value={inputValues.max_people_slot_4}
                   onChange={(e) => handleInputChange('max_people_slot_4', e.target.value)}
+                  placeholder="10"
                 />
                 <span className="text-sm text-gray-500 whitespace-nowrap">max guests</span>
               </div>
