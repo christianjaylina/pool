@@ -1,41 +1,124 @@
 'use client';
 
-import { CalendarCheck, Users, Clock, TrendingUp } from 'lucide-react';
-import { Card, CardHeader, StatCard, Badge, Table } from '@/components/ui';
-import { format } from 'date-fns';
+import { useState, useEffect } from 'react';
+import { CalendarCheck, Users, Clock, TrendingUp, RefreshCw } from 'lucide-react';
+import { Card, CardHeader, StatCard, Badge, Table, Button } from '@/components/ui';
+import { format, isPast } from 'date-fns';
+import { reservationsApi, usersApi } from '@/lib/api';
 
-// Mock data
-const stats = [
-  { title: 'Total Reservations', value: 156, icon: CalendarCheck, color: 'primary' as const, change: { value: 12, isPositive: true } },
-  { title: 'Active Users', value: 42, icon: Users, color: 'success' as const, change: { value: 5, isPositive: true } },
-  { title: 'Pending Requests', value: 8, icon: Clock, color: 'warning' as const },
-  { title: 'This Week', value: 24, icon: TrendingUp, color: 'primary' as const, change: { value: 8, isPositive: true } },
-];
-
-const recentReservations = [
-  { id: 1, user: 'John Doe', date: '2025-11-29', time: '10:00 - 12:00', status: 'pending', guests: 2 },
-  { id: 2, user: 'Jane Smith', date: '2025-11-29', time: '14:00 - 16:00', status: 'approved', guests: 3 },
-  { id: 3, user: 'Bob Wilson', date: '2025-11-30', time: '09:00 - 11:00', status: 'pending', guests: 1 },
-  { id: 4, user: 'Alice Brown', date: '2025-11-30', time: '15:00 - 17:00', status: 'approved', guests: 4 },
-  { id: 5, user: 'Charlie Davis', date: '2025-12-01', time: '11:00 - 13:00', status: 'rejected', guests: 2 },
-];
+interface Reservation {
+  reservation_id: number;
+  fName: string;
+  lName: string;
+  email: string;
+  start_time: string;
+  end_time: string;
+  status: string;
+}
 
 export default function AdminDashboardPage() {
-  const getStatusBadge = (status: string) => {
-    const variants: Record<string, 'success' | 'warning' | 'danger'> = {
+  const [reservations, setReservations] = useState<Reservation[]>([]);
+  const [userCount, setUserCount] = useState(0);
+  const [loading, setLoading] = useState(true);
+
+  const fetchData = async () => {
+    try {
+      setLoading(true);
+      const [reservationsRes, usersRes] = await Promise.all([
+        reservationsApi.getAll(),
+        usersApi.getAll()
+      ]);
+      setReservations(reservationsRes.data);
+      setUserCount(usersRes.data.length);
+    } catch (error) {
+      console.error('Error fetching dashboard data:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchData();
+  }, []);
+
+  // Check if a reservation is in the past
+  const isReservationPast = (endTime: string) => {
+    return isPast(new Date(endTime));
+  };
+
+  // Only count pending reservations that are not expired
+  const pendingCount = reservations.filter(r => r.status === 'pending' && !isReservationPast(r.end_time)).length;
+  const approvedCount = reservations.filter(r => r.status === 'approved').length;
+  const totalCount = reservations.length;
+
+  // Recent reservations (last 5)
+  const recentReservations = [...reservations]
+    .sort((a, b) => new Date(b.start_time).getTime() - new Date(a.start_time).getTime())
+    .slice(0, 5);
+
+  // Today's approved reservations
+  const today = format(new Date(), 'yyyy-MM-dd');
+  const todaysReservations = reservations.filter(r => {
+    const resDate = format(new Date(r.start_time), 'yyyy-MM-dd');
+    return resDate === today && r.status === 'approved';
+  });
+
+  const stats = [
+    { title: 'Total Reservations', value: totalCount, icon: CalendarCheck, color: 'primary' as const },
+    { title: 'Active Users', value: userCount, icon: Users, color: 'success' as const },
+    { title: 'Pending Requests', value: pendingCount, icon: Clock, color: 'warning' as const },
+    { title: 'Approved', value: approvedCount, icon: TrendingUp, color: 'primary' as const },
+  ];
+
+  const getStatusBadge = (status: string, endTime: string) => {
+    const past = isReservationPast(endTime);
+    
+    if (past && status === 'approved') {
+      return <Badge variant="default">Completed</Badge>;
+    }
+    if (past && status === 'pending') {
+      return <Badge variant="default">Expired</Badge>;
+    }
+    
+    const variants: Record<string, 'success' | 'warning' | 'danger' | 'default'> = {
       approved: 'success',
       pending: 'warning',
       rejected: 'danger',
+      cancelled: 'default',
     };
-    return <Badge variant={variants[status]}>{status.charAt(0).toUpperCase() + status.slice(1)}</Badge>;
+    return <Badge variant={variants[status] || 'default'}>{status.charAt(0).toUpperCase() + status.slice(1)}</Badge>;
   };
+
+  const formatTime = (dateTimeStr: string) => {
+    const date = new Date(dateTimeStr);
+    return date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+  };
+
+  const formatDate = (dateTimeStr: string) => {
+    const date = new Date(dateTimeStr);
+    return format(date, 'MMM d, yyyy');
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <RefreshCw className="h-8 w-8 animate-spin text-primary-600" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
       {/* Page Header */}
-      <div>
-        <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
-        <p className="text-gray-500 mt-1">Welcome back! Here's what's happening today.</p>
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
+          <p className="text-gray-500 mt-1">Welcome back! Here's what's happening today.</p>
+        </div>
+        <Button variant="outline" onClick={fetchData}>
+          <RefreshCw className="h-4 w-4 mr-2" />
+          Refresh
+        </Button>
       </div>
 
       {/* Stats Grid */}
@@ -59,17 +142,53 @@ export default function AdminDashboardPage() {
                 </a>
               }
             />
-            <Table
-              columns={[
-                { key: 'user', header: 'User' },
-                { key: 'date', header: 'Date' },
-                { key: 'time', header: 'Time' },
-                { key: 'guests', header: 'Guests' },
-                { key: 'status', header: 'Status', render: (r) => getStatusBadge(r.status) },
-              ]}
-              data={recentReservations}
-              keyExtractor={(r) => r.id}
-            />
+            {recentReservations.length === 0 ? (
+              <p className="text-center text-gray-500 py-8">No reservations yet</p>
+            ) : (
+              <Table
+                columns={[
+                  { 
+                    key: 'user', 
+                    header: 'User', 
+                    render: (r) => {
+                      const past = isReservationPast(r.end_time);
+                      return (
+                        <span className={past ? 'line-through text-gray-400' : ''}>
+                          {r.fName} {r.lName}
+                        </span>
+                      );
+                    }
+                  },
+                  { 
+                    key: 'date', 
+                    header: 'Date', 
+                    render: (r) => {
+                      const past = isReservationPast(r.end_time);
+                      return (
+                        <span className={past ? 'line-through text-gray-400' : ''}>
+                          {formatDate(r.start_time)}
+                        </span>
+                      );
+                    }
+                  },
+                  { 
+                    key: 'time', 
+                    header: 'Time', 
+                    render: (r) => {
+                      const past = isReservationPast(r.end_time);
+                      return (
+                        <span className={past ? 'line-through text-gray-400' : ''}>
+                          {formatTime(r.start_time)} - {formatTime(r.end_time)}
+                        </span>
+                      );
+                    }
+                  },
+                  { key: 'status', header: 'Status', render: (r) => getStatusBadge(r.status, r.end_time) },
+                ]}
+                data={recentReservations}
+                keyExtractor={(r) => r.reservation_id}
+              />
+            )}
           </Card>
         </div>
 
@@ -87,7 +206,7 @@ export default function AdminDashboardPage() {
                 </div>
                 <div>
                   <p className="font-medium text-gray-900">Pending Requests</p>
-                  <p className="text-sm text-gray-500">8 reservations await review</p>
+                  <p className="text-sm text-gray-500">{pendingCount} reservations await review</p>
                 </div>
               </a>
               <a
@@ -111,7 +230,7 @@ export default function AdminDashboardPage() {
                 </div>
                 <div>
                   <p className="font-medium text-gray-900">Manage Users</p>
-                  <p className="text-sm text-gray-500">Activate/deactivate accounts</p>
+                  <p className="text-sm text-gray-500">{userCount} registered users</p>
                 </div>
               </a>
             </div>
@@ -120,21 +239,32 @@ export default function AdminDashboardPage() {
           {/* Today's Schedule */}
           <Card>
             <CardHeader title="Today's Schedule" subtitle={format(new Date(), 'EEEE, MMMM d')} />
-            <div className="space-y-2">
-              {[
-                { time: '10:00 - 12:00', user: 'John Doe', guests: 2 },
-                { time: '14:00 - 16:00', user: 'Jane Smith', guests: 3 },
-                { time: '17:00 - 19:00', user: 'Bob Wilson', guests: 1 },
-              ].map((slot, idx) => (
-                <div key={idx} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                  <div>
-                    <p className="font-medium text-gray-900">{slot.time}</p>
-                    <p className="text-sm text-gray-500">{slot.user}</p>
-                  </div>
-                  <Badge variant="info">{slot.guests} guests</Badge>
-                </div>
-              ))}
-            </div>
+            {todaysReservations.length === 0 ? (
+              <p className="text-center text-gray-500 py-4">No reservations for today</p>
+            ) : (
+              <div className="space-y-2">
+                {todaysReservations.map((slot) => {
+                  const past = isReservationPast(slot.end_time);
+                  return (
+                    <div key={slot.reservation_id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                      <div>
+                        <p className={`font-medium ${past ? 'line-through text-gray-400' : 'text-gray-900'}`}>
+                          {formatTime(slot.start_time)} - {formatTime(slot.end_time)}
+                        </p>
+                        <p className={`text-sm ${past ? 'line-through text-gray-400' : 'text-gray-500'}`}>
+                          {slot.fName} {slot.lName}
+                        </p>
+                      </div>
+                      {past ? (
+                        <Badge variant="default">Completed</Badge>
+                      ) : (
+                        <Badge variant="success">Approved</Badge>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </Card>
         </div>
       </div>

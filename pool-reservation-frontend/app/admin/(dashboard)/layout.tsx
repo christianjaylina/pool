@@ -4,19 +4,29 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Sidebar } from '@/components/layout';
 import { PageLoader } from '@/components/ui';
 import { useRouter } from 'next/navigation';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
-  const { user, isLoading, logout } = useAuth();
+  const { user, isLoading, isAuthenticated, logout } = useAuth();
   const router = useRouter();
+  const [isReady, setIsReady] = useState(false);
 
   useEffect(() => {
-    if (!isLoading && (!user || user.role !== 'admin')) {
-      router.push('/admin/login');
+    if (!isLoading) {
+      if (!isAuthenticated) {
+        // Not logged in - redirect to admin login
+        router.push('/admin/login');
+      } else if (user?.role !== 'admin') {
+        // User is a renter, not admin - redirect to user homepage
+        router.push('/');
+      } else {
+        // User is authenticated admin
+        setIsReady(true);
+      }
     }
-  }, [user, isLoading, router]);
+  }, [user, isLoading, isAuthenticated, router]);
 
-  if (isLoading) {
+  if (isLoading || !isReady) {
     return <PageLoader />;
   }
 

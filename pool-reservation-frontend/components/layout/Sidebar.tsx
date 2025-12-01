@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import Image from 'next/image';
 import { usePathname } from 'next/navigation';
 import {
   LayoutDashboard,
@@ -9,9 +10,11 @@ import {
   Users,
   FileText,
   MessageSquare,
+  Settings,
   LogOut,
   ChevronLeft,
   ChevronRight,
+  Waves,
 } from 'lucide-react';
 import { useState } from 'react';
 import { cn } from '@/lib/utils';
@@ -28,7 +31,9 @@ export default function Sidebar({ onLogout }: SidebarProps) {
     { href: '/admin/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
     { href: '/admin/reservations', icon: CalendarCheck, label: 'Reservations' },
     { href: '/admin/schedules', icon: Calendar, label: 'Pool Schedules' },
+    { href: '/admin/swimming-lessons', icon: Waves, label: 'Swimming Lessons' },
     { href: '/admin/users', icon: Users, label: 'Manage Users' },
+    { href: '/admin/settings', icon: Settings, label: 'Pool Settings' },
     { href: '/admin/logs', icon: FileText, label: 'Admin Logs' },
     { href: '/admin/feedback', icon: MessageSquare, label: 'Feedback' },
   ];
@@ -41,21 +46,46 @@ export default function Sidebar({ onLogout }: SidebarProps) {
       )}
     >
       {/* Header */}
-      <div className="flex items-center justify-between h-16 px-4 border-b border-gray-800">
-        {!collapsed && (
-          <span className="font-bold text-lg">Admin Panel</span>
+      <div className="flex items-center h-16 px-3 border-b border-gray-800">
+        {!collapsed ? (
+          <div className="flex items-center gap-2 flex-1">
+            <Image
+              src="/images/logo/logo.png"
+              alt="Luxuria Bacaca Resort Logo"
+              width={32}
+              height={32}
+              className="rounded-lg flex-shrink-0"
+            />
+            <span className="font-bold text-sm">Luxuria Bacaca</span>
+          </div>
+        ) : (
+          <Image
+            src="/images/logo/logo.png"
+            alt="Luxuria Bacaca Resort Logo"
+            width={32}
+            height={32}
+            className="rounded-lg mx-auto"
+          />
         )}
-        <button
-          onClick={() => setCollapsed(!collapsed)}
-          className="p-1.5 rounded-lg hover:bg-gray-800 transition-colors ml-auto"
-        >
-          {collapsed ? (
-            <ChevronRight className="h-5 w-5" />
-          ) : (
+        {!collapsed && (
+          <button
+            onClick={() => setCollapsed(!collapsed)}
+            className="p-1.5 rounded-lg hover:bg-gray-800 transition-colors"
+          >
             <ChevronLeft className="h-5 w-5" />
-          )}
-        </button>
+          </button>
+        )}
       </div>
+
+      {/* Expand button when collapsed */}
+      {collapsed && (
+        <button
+          onClick={() => setCollapsed(false)}
+          className="w-full p-2 hover:bg-gray-800 transition-colors"
+        >
+          <ChevronRight className="h-5 w-5 mx-auto" />
+        </button>
+      )}
 
       {/* Navigation */}
       <nav className="flex flex-col gap-1 p-2 mt-4">

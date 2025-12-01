@@ -1,59 +1,15 @@
 'use client';
 
-import { useState } from 'react';
 import { format } from 'date-fns';
-import { Bell, Check, CheckCheck, Calendar, Info, AlertCircle } from 'lucide-react';
+import { Bell, Check, CheckCheck, Calendar, Info, AlertCircle, X } from 'lucide-react';
 import { Card, CardHeader, Button, Badge } from '@/components/ui';
-
-interface Notification {
-  id: number;
-  type: 'reservation_approved' | 'reservation_rejected' | 'reminder' | 'info';
-  title: string;
-  message: string;
-  read: boolean;
-  created_at: string;
-}
-
-const mockNotifications: Notification[] = [
-  {
-    id: 1,
-    type: 'reservation_approved',
-    title: 'Reservation Approved',
-    message: 'Your pool reservation for November 29, 2025 at 10:00 AM has been approved.',
-    read: false,
-    created_at: '2025-11-28T10:30:00',
-  },
-  {
-    id: 2,
-    type: 'reminder',
-    title: 'Upcoming Reservation',
-    message: 'Reminder: You have a pool reservation tomorrow at 10:00 AM.',
-    read: false,
-    created_at: '2025-11-28T08:00:00',
-  },
-  {
-    id: 3,
-    type: 'reservation_rejected',
-    title: 'Reservation Rejected',
-    message: 'Your pool reservation for November 25, 2025 was rejected due to scheduled maintenance.',
-    read: true,
-    created_at: '2025-11-24T14:00:00',
-  },
-  {
-    id: 4,
-    type: 'info',
-    title: 'Pool Hours Updated',
-    message: 'Pool operating hours have been extended to 9 PM for the holiday weekend.',
-    read: true,
-    created_at: '2025-11-22T09:00:00',
-  },
-];
+import { useNotifications } from '@/contexts/NotificationContext';
+import { useState } from 'react';
 
 export default function NotificationsPage() {
-  const [notifications, setNotifications] = useState<Notification[]>(mockNotifications);
+  const { notifications, unreadCount, markAsRead, markAllAsRead } = useNotifications();
   const [filter, setFilter] = useState<'all' | 'unread'>('all');
 
-  const unreadCount = notifications.filter(n => !n.read).length;
   const filteredNotifications = filter === 'all' 
     ? notifications 
     : notifications.filter(n => !n.read);
@@ -64,21 +20,15 @@ export default function NotificationsPage() {
         return <Check className="h-5 w-5 text-success-500" />;
       case 'reservation_rejected':
         return <AlertCircle className="h-5 w-5 text-danger-500" />;
+      case 'reservation_cancelled':
+        return <X className="h-5 w-5 text-gray-500" />;
+      case 'reservation_pending':
+        return <Calendar className="h-5 w-5 text-warning-500" />;
       case 'reminder':
         return <Calendar className="h-5 w-5 text-warning-500" />;
       default:
         return <Info className="h-5 w-5 text-primary-500" />;
     }
-  };
-
-  const markAsRead = (id: number) => {
-    setNotifications(prev =>
-      prev.map(n => n.id === id ? { ...n, read: true } : n)
-    );
-  };
-
-  const markAllAsRead = () => {
-    setNotifications(prev => prev.map(n => ({ ...n, read: true })));
   };
 
   return (
@@ -143,6 +93,8 @@ export default function NotificationsPage() {
                 <div className={`flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center ${
                   notification.type === 'reservation_approved' ? 'bg-success-50' :
                   notification.type === 'reservation_rejected' ? 'bg-danger-50' :
+                  notification.type === 'reservation_cancelled' ? 'bg-gray-100' :
+                  notification.type === 'reservation_pending' ? 'bg-warning-50' :
                   notification.type === 'reminder' ? 'bg-warning-50' : 'bg-primary-50'
                 }`}>
                   {getIcon(notification.type)}

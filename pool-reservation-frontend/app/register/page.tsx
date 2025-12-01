@@ -2,8 +2,9 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { useRouter } from 'next/navigation';
-import { Waves, Eye, EyeOff, CheckCircle } from 'lucide-react';
+import { Eye, EyeOff, CheckCircle } from 'lucide-react';
 import { Button, Input, Card } from '@/components/ui';
 import { authApi } from '@/lib/api';
 
@@ -72,10 +73,14 @@ export default function RegisterPage() {
       {/* Header */}
       <header className="px-6 py-4 border-b border-gray-200 bg-white">
         <Link href="/" className="flex items-center gap-2 w-fit">
-          <div className="w-8 h-8 bg-primary-600 rounded-lg flex items-center justify-center">
-            <Waves className="h-5 w-5 text-white" />
-          </div>
-          <span className="font-semibold text-gray-900">PoolRes</span>
+          <Image
+            src="/images/logo/logo.png"
+            alt="Luxuria Bacaca Resort Logo"
+            width={36}
+            height={36}
+            className="rounded-lg"
+          />
+          <span className="font-semibold text-gray-900">Luxuria Bacaca Resort</span>
         </Link>
       </header>
 
@@ -98,7 +103,7 @@ export default function RegisterPage() {
               <Input
                 id="fName"
                 label="First Name"
-                placeholder="John"
+                placeholder="Juan"
                 value={formData.fName}
                 onChange={(e) => setFormData({ ...formData, fName: e.target.value })}
                 required
@@ -106,7 +111,7 @@ export default function RegisterPage() {
               <Input
                 id="lName"
                 label="Last Name"
-                placeholder="Doe"
+                placeholder="Dela Cruz"
                 value={formData.lName}
                 onChange={(e) => setFormData({ ...formData, lName: e.target.value })}
                 required
@@ -117,7 +122,7 @@ export default function RegisterPage() {
               id="email"
               type="email"
               label="Email Address"
-              placeholder="you@example.com"
+              placeholder="juandelacruz@example.com"
               value={formData.email}
               onChange={(e) => setFormData({ ...formData, email: e.target.value })}
               required

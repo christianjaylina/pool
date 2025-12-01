@@ -41,3 +41,6 @@ next-env.d.ts
 # Misc
 *.log
 .vercel
+database_backup.sql
+database_backup_utf8.sql
+*.pem

@@ -4,23 +4,34 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Navbar } from '@/components/layout';
 import { PageLoader } from '@/components/ui';
 import { useRouter } from 'next/navigation';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 
 export default function UserLayout({ children }: { children: React.ReactNode }) {
-  const { user, isLoading, logout } = useAuth();
+  const { user, isLoading, isAuthenticated, logout } = useAuth();
   const router = useRouter();
+  const [isReady, setIsReady] = useState(false);
 
   useEffect(() => {
-    if (!isLoading && !user) {
-      router.push('/login');
+    // Wait for auth to finish loading before making redirect decisions
+    if (!isLoading) {
+      if (!isAuthenticated) {
+        router.push('/login');
+      } else if (user?.role === 'admin') {
+        // Admins should not access user pages - redirect to admin dashboard
+        router.push('/admin/dashboard');
+      } else {
+        setIsReady(true);
+      }
     }
-  }, [user, isLoading, router]);
+  }, [isLoading, isAuthenticated, user, router]);
 
-  if (isLoading) {
+  // Show loader while auth is loading or while checking auth
+  if (isLoading || !isReady) {
     return <PageLoader />;
   }
 
-  if (!user) {
+  // Should not reach here if not authenticated or if admin, but safety check
+  if (!user || user.role === 'admin') {
     return null;
   }
 

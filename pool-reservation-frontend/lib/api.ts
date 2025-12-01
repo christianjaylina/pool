@@ -12,7 +12,8 @@ api.interceptors.request.use((config) => {
   if (typeof window !== 'undefined') {
     const token = localStorage.getItem('token');
     if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
+      // Backend expects token in 'x-auth-token' header
+      config.headers['x-auth-token'] = token;
     }
   }
   return config;
@@ -22,13 +23,10 @@ api.interceptors.request.use((config) => {
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error.response?.status === 401) {
-      if (typeof window !== 'undefined') {
-        localStorage.removeItem('token');
-        localStorage.removeItem('user');
-        window.location.href = '/login';
-      }
-    }
+    // Don't auto-redirect on 401 - let the AuthContext handle auth state
+    // This prevents race conditions where an API call fails before auth is loaded
+    // The (user)/layout.tsx will handle redirecting unauthenticated users
+    console.error('API Error:', error.response?.status, error.config?.url);
     return Promise.reject(error);
   }
 );
@@ -39,35 +37,50 @@ export const authApi = {
     api.post('/auth/login', credentials),
   register: (userData: { fName: string; lName: string; email: string; password: string }) =>
     api.post('/auth/register', userData),
+  forgotPassword: (email: string) =>
+    api.post('/auth/forgot-password', { email }),
+  resetPassword: (token: string, newPassword: string) =>
+    api.post('/auth/reset-password', { token, newPassword }),
 };
 
 // Reservations API
 export const reservationsApi = {
-  getAll: () => api.get('/reservations'),
-  getMyReservations: () => api.get('/reservations/my'),
-  create: (data: { date: string; start_time: string; end_time: string; guests: number }) =>
-    api.post('/reservations', data),
+  getAll: () => api.get('/reservations/admin/all'),
+  getMyReservations: () => api.get('/reservations/history'),
+  create: (data: { date: string; startTime: string; endTime: string; guests: number }) =>
+    api.post('/reservations/request', data),
   cancel: (id: number) => api.put(`/reservations/${id}/cancel`),
-  approve: (id: number) => api.put(`/reservations/${id}/approve`),
-  reject: (id: number, reason: string) => api.put(`/reservations/${id}/reject`, { reason }),
-  getPending: () => api.get('/reservations/pending'),
+  approve: (id: number) => api.put(`/reservations/admin/status/${id}`, { newStatus: 'approved' }),
+  reject: (id: number, reason?: string) => api.put(`/reservations/admin/status/${id}`, { newStatus: 'rejected', reason }),
+  adminCancel: (id: number, reason: string) => api.put(`/reservations/admin/cancel/${id}`, { reason }),
+  adminCreate: (data: { userId: number; date: string; startTime: string; endTime: string; guests: number }) =>
+    api.post('/reservations/admin/create', data),
+  getPending: () => api.get('/reservations/admin/pending'),
+  getAvailability: (date: string) => api.get(`/reservations/availability/${date}`),
+  getSlotStatus: (date: string) => api.get(`/reservations/slot-status/${date}`),
 };
 
 // Users API
 export const usersApi = {
-  getAll: () => api.get('/users'),
-  toggleActive: (id: number) => api.put(`/users/${id}/toggle-active`),
-  getProfile: () => api.get('/users/profile'),
+  getAll: () => api.get('/users/admin/renters'),
+  toggleActive: (id: number, isActive: boolean) => api.put(`/users/admin/status/${id}`, { isActive }),
+  setMaxGuests: (id: number, maxGuests: number | null) => api.put(`/users/admin/max-guests/${id}`, { maxGuests }),
+  updateUserInfo: (id: number, data: { fName?: string; lName?: string; email?: string }) => 
+    api.put(`/users/admin/update/${id}`, data),
+  getProfile: () => api.get('/auth/me'),
+  updateProfile: (data: { fName?: string; lName?: string; currentPassword?: string; newPassword?: string }) =>
+    api.put('/auth/profile', data),
 };
 
 // Pool Settings API
 export const poolApi = {
-  getSettings: () => api.get('/pool/settings'),
-  updateSettings: (data: any) => api.put('/pool/settings', data),
-  getAvailability: (date: string) => api.get(`/pool/availability?date=${date}`),
-  blockSlot: (data: { date: string; start_time: string; end_time: string }) =>
-    api.post('/pool/block', data),
-  unblockSlot: (id: number) => api.delete(`/pool/block/${id}`),
+  getSettings: () => api.get('/reservations/admin/settings'),
+  getPublicSettings: () => api.get('/reservations/pool-settings'),
+  updateSettings: (data: any) => api.put('/reservations/admin/settings', data),
+  blockSlot: (data: { date: string; startTime: string; endTime: string; reason: string }) =>
+    api.post('/reservations/admin/block', data),
+  getBlockedSlots: () => api.get('/reservations/admin/blocked'),
+  removeBlockedSlot: (id: number) => api.delete(`/reservations/admin/blocked/${id}`),
 };
 
 // Notifications API
@@ -77,16 +90,26 @@ export const notificationsApi = {
   markAllRead: () => api.put('/notifications/read-all'),
 };
 
+// Admin Logs API
+export const logsApi = {
+  getAll: () => api.get('/reservations/admin/logs'),
+};
+
+// Swimming Lessons API
+export const swimmingLessonsApi = {
+  getAll: () => api.get('/reservations/admin/swimming-lessons'),
+  getByDate: (date: string) => api.get(`/reservations/admin/swimming-lessons/${date}`),
+  create: (data: { date: string; startTime: string; endTime: string; participants: number; instructorName?: string; notes?: string }) =>
+    api.post('/reservations/admin/swimming-lessons', data),
+  delete: (id: number) => api.delete(`/reservations/admin/swimming-lessons/${id}`),
+};
+
 // Feedback API
 export const feedbackApi = {
   submit: (data: { subject: string; message: string; rating: number }) =>
     api.post('/feedback', data),
-  getAll: () => api.get('/feedback'),
-};
-
-// Admin Logs API
-export const logsApi = {
-  getAll: () => api.get('/logs'),
+  getAll: () => api.get('/feedback/admin/all'),
+  getMy: () => api.get('/feedback/my'),
 };
 
 export default api;

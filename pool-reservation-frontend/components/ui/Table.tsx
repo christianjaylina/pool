@@ -17,6 +17,7 @@ interface TableProps<T> {
   keyExtractor: (item: T) => string | number;
   onRowClick?: (item: T) => void;
   emptyMessage?: string;
+  rowClassName?: (item: T) => string;
 }
 
 export default function Table<T>({
@@ -25,6 +26,7 @@ export default function Table<T>({
   keyExtractor,
   onRowClick,
   emptyMessage = 'No data available',
+  rowClassName,
 }: TableProps<T>) {
   const [sortConfig, setSortConfig] = useState<{
     key: string;
@@ -90,7 +92,8 @@ export default function Table<T>({
                 key={keyExtractor(item)}
                 className={cn(
                   'transition-colors',
-                  onRowClick && 'cursor-pointer hover:bg-gray-50'
+                  onRowClick && 'cursor-pointer hover:bg-gray-50',
+                  rowClassName?.(item)
                 )}
                 onClick={() => onRowClick?.(item)}
               >

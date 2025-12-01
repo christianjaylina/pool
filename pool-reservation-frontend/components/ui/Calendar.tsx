@@ -16,6 +16,7 @@ import {
   isSameDay,
   isToday,
   isBefore,
+  startOfDay,
 } from 'date-fns';
 
 interface CalendarProps {
@@ -46,8 +47,9 @@ export default function Calendar({
   }
 
   const isDisabled = (date: Date) => {
+    // Compare only the date portion (ignore time) to allow selecting today
     return (
-      isBefore(date, minDate) ||
+      isBefore(startOfDay(date), startOfDay(minDate)) ||
       disabledDates.some((d) => isSameDay(d, date))
     );
   };

@@ -1,9 +1,10 @@
 'use client';
 
 import { useState } from 'react';
-import { Star, Send, CheckCircle } from 'lucide-react';
+import { Star, Send, CheckCircle, AlertCircle } from 'lucide-react';
 import { Card, CardHeader, Button, Input, Select } from '@/components/ui';
 import { cn } from '@/lib/utils';
+import { feedbackApi } from '@/lib/api';
 
 export default function FeedbackPage() {
   const [rating, setRating] = useState(0);
@@ -12,6 +13,7 @@ export default function FeedbackPage() {
   const [message, setMessage] = useState('');
   const [loading, setLoading] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  const [error, setError] = useState('');
 
   const subjectOptions = [
     { value: '', label: 'Select a topic' },
@@ -28,10 +30,16 @@ export default function FeedbackPage() {
     if (!rating || !subject || !message) return;
 
     setLoading(true);
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    setSubmitted(true);
-    setLoading(false);
+    setError('');
+    
+    try {
+      await feedbackApi.submit({ subject, message, rating });
+      setSubmitted(true);
+    } catch (err: any) {
+      setError(err.response?.data?.message || 'Failed to submit feedback. Please try again.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   if (submitted) {
@@ -50,6 +58,7 @@ export default function FeedbackPage() {
             setRating(0);
             setSubject('');
             setMessage('');
+            setError('');
           }}>
             Submit Another Feedback
           </Button>
@@ -65,6 +74,14 @@ export default function FeedbackPage() {
         <h1 className="text-2xl font-bold text-gray-900">Submit Feedback</h1>
         <p className="text-gray-500 mt-1">Help us improve by sharing your experience</p>
       </div>
+
+      {/* Error Message */}
+      {error && (
+        <div className="flex items-center gap-2 p-4 bg-danger-50 text-danger-700 rounded-lg">
+          <AlertCircle className="h-5 w-5" />
+          {error}
+        </div>
+      )}
 
       <div className="grid lg:grid-cols-3 gap-6">
         {/* Feedback Form */}

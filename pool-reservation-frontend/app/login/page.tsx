@@ -2,7 +2,8 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { Waves, Eye, EyeOff } from 'lucide-react';
+import Image from 'next/image';
+import { Eye, EyeOff } from 'lucide-react';
 import { Button, Input, Card } from '@/components/ui';
 import { authApi } from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
@@ -37,10 +38,14 @@ export default function LoginPage() {
       {/* Header */}
       <header className="px-6 py-4 border-b border-gray-200 bg-white">
         <Link href="/" className="flex items-center gap-2 w-fit">
-          <div className="w-8 h-8 bg-primary-600 rounded-lg flex items-center justify-center">
-            <Waves className="h-5 w-5 text-white" />
-          </div>
-          <span className="font-semibold text-gray-900">PoolRes</span>
+          <Image
+            src="/images/logo/logo.png"
+            alt="Luxuria Bacaca Resort Logo"
+            width={36}
+            height={36}
+            className="rounded-lg"
+          />
+          <span className="font-semibold text-gray-900">Luxuria Bacaca Resort</span>
         </Link>
       </header>
 
@@ -86,6 +91,15 @@ export default function LoginPage() {
               >
                 {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
               </button>
+            </div>
+
+            <div className="flex justify-end">
+              <Link 
+                href="/forgot-password" 
+                className="text-sm text-primary-600 hover:text-primary-700 font-medium"
+              >
+                Forgot Password?
+              </Link>
             </div>
 
             <Button type="submit" className="w-full" loading={loading}>

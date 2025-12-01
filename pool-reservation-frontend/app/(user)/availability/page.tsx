@@ -2,17 +2,59 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { format, isToday, isBefore, startOfDay } from 'date-fns';
-import { Calendar as CalendarIcon, Clock, Users, ArrowRight } from 'lucide-react';
+import { Calendar as CalendarIcon, Clock, Users, ArrowRight, Info, RefreshCw } from 'lucide-react';
 import { Card, CardHeader, Calendar, TimeSlotPicker, Button, Select, Modal, Input } from '@/components/ui';
-import { poolApi, reservationsApi } from '@/lib/api';
+import { poolApi, reservationsApi, usersApi } from '@/lib/api';
 
 interface TimeSlot {
   time: string;
   available: boolean;
+  isFull?: boolean;
+  isBlocked?: boolean;
+  availableSpots?: number;
+  currentGuests?: number;
+  lessonParticipants?: number;
+  maxCapacity?: number;
 }
 
-// Base time slots (without time restrictions)
+interface SlotStatus {
+  time: string;
+  currentGuests: number;
+  lessonParticipants?: number;
+  totalOccupancy?: number;
+  maxCapacity: number;
+  isFull: boolean;
+  isBlocked: boolean;
+  availableSpots: number;
+}
+
+interface PoolSettings {
+  max_people_slot_1?: number;
+  max_people_slot_2?: number;
+  max_people_slot_3?: number;
+  max_people_slot_4?: number;
+  max_guests?: number;
+}
+
+interface UserProfile {
+  maxGuests: number | null;
+}
+
+// Helper function to convert 24hr time to 12hr AM/PM format
+const formatTimeToAMPM = (time24: string): string => {
+  if (!time24 || !time24.includes(':')) return '';
+  const [hourStr, minuteStr] = time24.split(':');
+  const hour = parseInt(hourStr, 10);
+  const minute = minuteStr;
+  const period = hour >= 12 ? 'PM' : 'AM';
+  const hour12 = hour === 0 ? 12 : hour > 12 ? hour - 12 : hour;
+  return `${hour12}:${minute} ${period}`;
+};
+
+// Base time slots (6 AM to 10 PM)
 const BASE_TIME_SLOTS = [
+  { time: '06:00', available: true },
+  { time: '07:00', available: true },
   { time: '08:00', available: true },
   { time: '09:00', available: true },
   { time: '10:00', available: true },
@@ -25,6 +67,9 @@ const BASE_TIME_SLOTS = [
   { time: '17:00', available: true },
   { time: '18:00', available: true },
   { time: '19:00', available: true },
+  { time: '20:00', available: true },
+  { time: '21:00', available: true },
+  { time: '22:00', available: true },
 ];
 
 export default function AvailabilityPage() {
@@ -36,6 +81,64 @@ export default function AvailabilityPage() {
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [success, setSuccess] = useState(false);
   const [currentTime, setCurrentTime] = useState(new Date());
+  const [poolSettings, setPoolSettings] = useState<PoolSettings | null>(null);
+  const [loadingSettings, setLoadingSettings] = useState(true);
+  const [slotStatuses, setSlotStatuses] = useState<SlotStatus[]>([]);
+  const [loadingSlots, setLoadingSlots] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [userMaxGuests, setUserMaxGuests] = useState<number | null>(null);
+
+  // Fetch pool settings and user profile on mount
+  useEffect(() => {
+    const fetchSettings = async () => {
+      try {
+        const [poolResponse, userResponse] = await Promise.all([
+          poolApi.getPublicSettings(),
+          usersApi.getProfile()
+        ]);
+        setPoolSettings(poolResponse.data);
+        setUserMaxGuests(userResponse.data.maxGuests);
+      } catch (error) {
+        console.error('Error fetching settings:', error);
+        // Default to 10 guests if settings can't be fetched
+        setPoolSettings({ max_guests: 10 });
+      } finally {
+        setLoadingSettings(false);
+      }
+    };
+
+    fetchSettings();
+  }, []);
+
+  // Fetch slot status when date changes
+  useEffect(() => {
+    const fetchSlotStatus = async () => {
+      setLoadingSlots(true);
+      try {
+        const dateStr = format(selectedDate, 'yyyy-MM-dd');
+        const response = await reservationsApi.getSlotStatus(dateStr);
+        setSlotStatuses(response.data.slots || []);
+      } catch (error) {
+        console.error('Error fetching slot status:', error);
+        setSlotStatuses([]);
+      } finally {
+        setLoadingSlots(false);
+      }
+    };
+
+    fetchSlotStatus();
+  }, [selectedDate, success]); // Re-fetch after successful reservation
+
+  // Generate guest options based on user's max_guests limit (or pool default)
+  const guestOptions = useMemo(() => {
+    // Use user's personal limit if set, otherwise use pool's default
+    const poolMax = poolSettings?.max_guests || 10;
+    const maxGuests = userMaxGuests !== null ? Math.min(userMaxGuests, poolMax) : poolMax;
+    return Array.from({ length: maxGuests }, (_, i) => ({
+      value: String(i + 1),
+      label: `${i + 1} Guest${i + 1 > 1 ? 's' : ''}`
+    }));
+  }, [poolSettings, userMaxGuests]);
 
   // Update current time every minute to keep time restrictions accurate
   useEffect(() => {
@@ -67,24 +170,28 @@ export default function AvailabilityPage() {
     const slotInMinutes = slotHour * 60 + slotMinute;
     const currentInMinutes = currentHour * 60 + currentMinute;
 
-    // Require at least 60 minutes (1 hour) advance booking
-    return slotInMinutes >= currentInMinutes + 60;
+    // Require at least 30 minutes advance booking
+    return slotInMinutes >= currentInMinutes + 30;
   };
 
-  // Calculate available time slots based on selected date and current time
+  // Calculate available time slots based on selected date, current time, and slot status
   const timeSlots = useMemo(() => {
-    return BASE_TIME_SLOTS.map(slot => ({
-      ...slot,
-      available: slot.available && isTimeSlotAvailable(slot.time, selectedDate)
-    }));
-  }, [selectedDate, currentTime]);
-
-  const guestOptions = [
-    { value: '1', label: '1 Guest' },
-    { value: '2', label: '2 Guests' },
-    { value: '3', label: '3 Guests' },
-    { value: '4', label: '4 Guests' },
-  ];
+    return BASE_TIME_SLOTS.map(slot => {
+      const slotStatus = slotStatuses.find(s => s.time === slot.time);
+      const timeAvailable = isTimeSlotAvailable(slot.time, selectedDate);
+      
+      return {
+        ...slot,
+        available: timeAvailable && !slotStatus?.isFull && !slotStatus?.isBlocked,
+        isFull: slotStatus?.isFull || false,
+        isBlocked: slotStatus?.isBlocked || false,
+        availableSpots: slotStatus?.availableSpots,
+        currentGuests: slotStatus?.currentGuests,
+        lessonParticipants: slotStatus?.lessonParticipants,
+        maxCapacity: slotStatus?.maxCapacity
+      };
+    });
+  }, [selectedDate, currentTime, slotStatuses]);
 
   const durationOptions = [
     { value: '1', label: '1 Hour' },
@@ -101,22 +208,31 @@ export default function AvailabilityPage() {
     return `${endHour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`;
   };
 
+  const [isPendingConflict, setIsPendingConflict] = useState(false);
+
   const handleReserve = async () => {
     if (!selectedTime) return;
     
     setLoading(true);
+    setError(null);
+    setIsPendingConflict(false);
     try {
       await reservationsApi.create({
         date: format(selectedDate, 'yyyy-MM-dd'),
-        start_time: selectedTime,
-        end_time: calculateEndTime(selectedTime, parseInt(duration)),
+        startTime: selectedTime,
+        endTime: calculateEndTime(selectedTime, parseInt(duration)),
         guests: parseInt(guests),
       });
       setSuccess(true);
       setShowConfirmModal(false);
       setSelectedTime('');
-    } catch (error) {
+    } catch (error: any) {
       console.error('Reservation failed:', error);
+      const errorMessage = error.response?.data?.message || 'Failed to create reservation. Please try again.';
+      const hasPendingConflict = error.response?.data?.isPendingConflict || false;
+      setError(errorMessage);
+      setIsPendingConflict(hasPendingConflict);
+      setShowConfirmModal(false);
     } finally {
       setLoading(false);
     }
@@ -130,11 +246,65 @@ export default function AvailabilityPage() {
         <p className="text-gray-500 mt-1">Select a date and time to make a reservation</p>
       </div>
 
+      {/* Pool Capacity Info */}
+      {poolSettings && (
+        <div className="p-4 rounded-xl bg-primary-50 border border-primary-200">
+          <div className="flex items-start gap-3">
+            <Info className="h-5 w-5 text-primary-600 mt-0.5" />
+            <div>
+              <p className="font-medium text-primary-900">Pool Capacity Information</p>
+              <p className="text-sm text-primary-700 mt-1">
+                {userMaxGuests !== null ? (
+                  <>Your maximum guests per reservation: <strong>{userMaxGuests} guest{userMaxGuests !== 1 ? 's' : ''}</strong></>
+                ) : (
+                  <>Maximum guests allowed per reservation: <strong>{poolSettings.max_guests || 10} guests</strong></>
+                )}
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Legend */}
+      <div className="flex flex-wrap gap-4 text-sm">
+        <div className="flex items-center gap-2">
+          <div className="w-4 h-4 rounded border border-gray-200 bg-white"></div>
+          <span className="text-gray-600">Available</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <div className="w-4 h-4 rounded bg-red-100 border border-red-200"></div>
+          <span className="text-gray-600">Full</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <div className="w-4 h-4 rounded bg-gray-200"></div>
+          <span className="text-gray-600">Blocked</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <div className="w-4 h-4 rounded bg-gray-100"></div>
+          <span className="text-gray-600">Past/Unavailable</span>
+        </div>
+      </div>
+
       {/* Success Message */}
       {success && (
         <div className="p-4 rounded-xl bg-success-50 border border-success-200 text-success-700">
           <p className="font-medium">Reservation request submitted!</p>
           <p className="text-sm mt-1">You'll receive a notification once it's approved.</p>
+        </div>
+      )}
+
+      {/* Error Message */}
+      {error && (
+        <div className={`p-4 rounded-xl border ${isPendingConflict ? 'bg-amber-50 border-amber-200 text-amber-700' : 'bg-red-50 border-red-200 text-red-700'}`}>
+          <p className="font-medium">{isPendingConflict ? 'Pending Request Exists' : 'Reservation Failed'}</p>
+          <p className="text-sm mt-1">{error}</p>
+          {isPendingConflict && (
+            <p className="text-sm mt-2">
+              <a href="/my-reservations" className="underline font-medium hover:no-underline">
+                View your pending reservations →
+              </a>
+            </p>
+          )}
         </div>
       )}
 
@@ -147,6 +317,7 @@ export default function AvailabilityPage() {
               setSelectedDate(date);
               setSelectedTime('');
               setSuccess(false);
+              setError(null);
             }}
           />
         </div>
@@ -157,15 +328,24 @@ export default function AvailabilityPage() {
             <CardHeader
               title={`Available Times for ${format(selectedDate, 'EEEE, MMMM d')}`}
               subtitle={isToday(selectedDate) 
-                ? `Reservations require at least 1 hour advance booking. Current time: ${format(currentTime, 'h:mm a')}`
+                ? `Reservations require at least 30 minutes advance booking. Current time: ${format(currentTime, 'h:mm a')}`
                 : "Select a time slot to reserve"
               }
             />
-            <TimeSlotPicker
-              slots={timeSlots}
-              selectedTime={selectedTime}
-              onSelect={setSelectedTime}
-            />
+            {loadingSlots ? (
+              <div className="flex items-center justify-center py-8">
+                <RefreshCw className="h-6 w-6 animate-spin text-primary-600" />
+                <span className="ml-2 text-gray-500">Loading availability...</span>
+              </div>
+            ) : (
+              <TimeSlotPicker
+                slots={timeSlots}
+                selectedTime={selectedTime}
+                onSelect={setSelectedTime}
+                formatTime={formatTimeToAMPM}
+                showCapacity={true}
+              />
+            )}
           </Card>
 
           {/* Reservation Options */}
@@ -200,8 +380,8 @@ export default function AvailabilityPage() {
                   <div className="flex items-center gap-2 text-gray-600">
                     <Clock className="h-4 w-4" />
                     <span>
-                      {selectedTime} <ArrowRight className="h-3 w-3 inline" />{' '}
-                      {calculateEndTime(selectedTime, parseInt(duration))}
+                      {formatTimeToAMPM(selectedTime)} <ArrowRight className="h-3 w-3 inline" />{' '}
+                      {formatTimeToAMPM(calculateEndTime(selectedTime, parseInt(duration)))}
                     </span>
                   </div>
                   <div className="flex items-center gap-2 text-gray-600">
@@ -234,7 +414,7 @@ export default function AvailabilityPage() {
           </p>
           <div className="p-4 bg-gray-50 rounded-xl space-y-2 text-sm">
             <p><strong>Date:</strong> {format(selectedDate, 'EEEE, MMMM d, yyyy')}</p>
-            <p><strong>Time:</strong> {selectedTime} - {calculateEndTime(selectedTime, parseInt(duration))}</p>
+            <p><strong>Time:</strong> {formatTimeToAMPM(selectedTime)} - {formatTimeToAMPM(calculateEndTime(selectedTime, parseInt(duration)))}</p>
             <p><strong>Guests:</strong> {guests}</p>
           </div>
           <div className="flex gap-3">
