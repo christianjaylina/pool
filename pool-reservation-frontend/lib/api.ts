@@ -1,7 +1,20 @@
 import axios from 'axios';
 
+// For production, use the full API URL; for local dev, use proxy
+const getBaseURL = () => {
+  if (typeof window !== 'undefined') {
+    // Client-side: check if we have a production API URL
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL;
+    if (apiUrl) {
+      return `${apiUrl}/api`;
+    }
+  }
+  // Fallback to local proxy
+  return '/api';
+};
+
 const api = axios.create({
-  baseURL: process.env.NEXT_PUBLIC_API_URL || '/api',
+  baseURL: getBaseURL(),
   headers: {
     'Content-Type': 'application/json',
   },
