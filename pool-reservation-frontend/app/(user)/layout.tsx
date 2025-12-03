@@ -17,7 +17,6 @@ export default function UserLayout({ children }: { children: React.ReactNode }) 
       if (!isAuthenticated) {
         router.push('/login');
       } else if (user?.role === 'admin') {
-        // Admins should not access user pages - redirect to admin dashboard
         router.push('/admin/dashboard');
       } else {
         setIsReady(true);
