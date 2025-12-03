@@ -41,9 +41,18 @@ export default function AdminDashboardPage() {
     fetchData();
   }, []);
 
-  // Check if a reservation is in the past
+  // Helper function to get date in Philippines timezone (UTC+8)
+  const getPhilippinesDate = (dateTimeStr: string): Date => {
+    const date = new Date(dateTimeStr);
+    return new Date(date.getTime() + (8 * 60 * 60 * 1000));
+  };
+
+  // Check if a reservation is in the past (using Philippines time)
   const isReservationPast = (endTime: string) => {
-    return isPast(new Date(endTime));
+    const now = new Date();
+    const phNow = new Date(now.getTime() + (8 * 60 * 60 * 1000));
+    const phEndTime = getPhilippinesDate(endTime);
+    return phEndTime < phNow;
   };
 
   // Only count pending reservations that are not expired
@@ -56,10 +65,12 @@ export default function AdminDashboardPage() {
     .sort((a, b) => new Date(b.start_time).getTime() - new Date(a.start_time).getTime())
     .slice(0, 5);
 
-  // Today's approved reservations
-  const today = format(new Date(), 'yyyy-MM-dd');
+  // Today's approved reservations (in Philippines time)
+  const phNow = new Date(new Date().getTime() + (8 * 60 * 60 * 1000));
+  const today = format(phNow, 'yyyy-MM-dd');
   const todaysReservations = reservations.filter(r => {
-    const resDate = format(new Date(r.start_time), 'yyyy-MM-dd');
+    const phDate = getPhilippinesDate(r.start_time);
+    const resDate = format(phDate, 'yyyy-MM-dd');
     return resDate === today && r.status === 'approved';
   });
 
@@ -90,13 +101,17 @@ export default function AdminDashboardPage() {
   };
 
   const formatTime = (dateTimeStr: string) => {
-    const date = new Date(dateTimeStr);
-    return date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+    const phTime = getPhilippinesDate(dateTimeStr);
+    const hours = phTime.getUTCHours();
+    const minutes = phTime.getUTCMinutes();
+    const period = hours >= 12 ? 'PM' : 'AM';
+    const hour12 = hours === 0 ? 12 : hours > 12 ? hours - 12 : hours;
+    return `${hour12}:${minutes.toString().padStart(2, '0')} ${period}`;
   };
 
   const formatDate = (dateTimeStr: string) => {
-    const date = new Date(dateTimeStr);
-    return format(date, 'MMM d, yyyy');
+    const phDate = getPhilippinesDate(dateTimeStr);
+    return format(phDate, 'MMM d, yyyy');
   };
 
   if (loading) {
