@@ -138,18 +138,9 @@ export default function AdminReservationsPage() {
     return new Date().toISOString().split('T')[0];
   };
 
-  // Helper function to get date in Philippines timezone (UTC+8)
-  const getPhilippinesDate = (dateTimeStr: string): Date => {
-    const date = new Date(dateTimeStr);
-    return new Date(date.getTime() + (8 * 60 * 60 * 1000));
-  };
-
-  // Check if a reservation is in the past (using Philippines time)
+  // Check if a reservation is in the past
   const isReservationPast = (endTime: string) => {
-    const now = new Date();
-    const phNow = new Date(now.getTime() + (8 * 60 * 60 * 1000));
-    const phEndTime = getPhilippinesDate(endTime);
-    return phEndTime < phNow;
+    return isPast(new Date(endTime));
   };
 
   const getStatusBadge = (status: string) => {
@@ -238,20 +229,16 @@ export default function AdminReservationsPage() {
 
   const pendingCount = reservations.filter(r => r.status === 'pending' && !isReservationPast(r.end_time)).length;
 
-  // Helper to format time to AM/PM (Philippines timezone)
+  // Helper to format time to AM/PM
   const formatTime = (dateTimeStr: string) => {
-    const phTime = getPhilippinesDate(dateTimeStr);
-    const hours = phTime.getUTCHours();
-    const minutes = phTime.getUTCMinutes();
-    const period = hours >= 12 ? 'PM' : 'AM';
-    const hour12 = hours === 0 ? 12 : hours > 12 ? hours - 12 : hours;
-    return `${hour12}:${minutes.toString().padStart(2, '0')} ${period}`;
+    const date = new Date(dateTimeStr);
+    return date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
   };
 
-  // Helper to format date (Philippines timezone)
+  // Helper to format date
   const formatDate = (dateTimeStr: string) => {
-    const phDate = getPhilippinesDate(dateTimeStr);
-    return format(phDate, 'MMM d, yyyy');
+    const date = new Date(dateTimeStr);
+    return format(date, 'MMM d, yyyy');
   };
 
   if (loading) {

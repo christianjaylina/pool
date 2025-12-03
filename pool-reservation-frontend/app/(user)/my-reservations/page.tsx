@@ -16,33 +16,16 @@ interface Reservation {
   rejection_reason?: string;
 }
 
-// Helper function to convert UTC datetime to Philippines time (UTC+8) and format as 12hr AM/PM
+// Helper function to format time as 12hr AM/PM
 const formatTimeToAMPM = (dateTimeStr: string): string => {
   if (!dateTimeStr) return '';
   const date = new Date(dateTimeStr);
-  // Convert to Philippines time by adding 8 hours to UTC
-  const phTime = new Date(date.getTime() + (8 * 60 * 60 * 1000));
-  const hours = phTime.getUTCHours();
-  const minutes = phTime.getUTCMinutes();
-  const period = hours >= 12 ? 'PM' : 'AM';
-  const hour12 = hours === 0 ? 12 : hours > 12 ? hours - 12 : hours;
-  return `${hour12}:${minutes.toString().padStart(2, '0')} ${period}`;
+  return date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
 };
 
-// Helper function to get date in Philippines timezone
-const getPhilippinesDate = (dateTimeStr: string): Date => {
-  const date = new Date(dateTimeStr);
-  // Convert to Philippines time
-  return new Date(date.getTime() + (8 * 60 * 60 * 1000));
-};
-
-// Helper function to check if a reservation is in the past (using Philippines time)
+// Helper function to check if a reservation is in the past
 const isPastReservation = (endTime: string): boolean => {
-  // Get current time in Philippines
-  const now = new Date();
-  const phNow = new Date(now.getTime() + (8 * 60 * 60 * 1000));
-  const phEndTime = getPhilippinesDate(endTime);
-  return phEndTime < phNow;
+  return new Date(endTime) < new Date();
 };
 
 export default function MyReservationsPage() {
@@ -226,7 +209,7 @@ export default function MyReservationsPage() {
                 <div className="space-y-2 text-sm">
                   <div className="flex items-center gap-2 text-gray-700">
                     <Calendar className="h-4 w-4 text-gray-400" />
-                    <span>{format(getPhilippinesDate(reservation.start_time), 'EEE, MMM d, yyyy')}</span>
+                    <span>{format(new Date(reservation.start_time), 'EEE, MMM d, yyyy')}</span>
                   </div>
                   <div className="flex items-center gap-2 text-gray-700">
                     <Clock className="h-4 w-4 text-gray-400" />
@@ -275,7 +258,7 @@ export default function MyReservationsPage() {
                 const isPast = isPastReservation(r.end_time);
                 return (
                   <span className={isPast ? 'text-gray-400' : ''}>
-                    {format(getPhilippinesDate(r.start_time), 'MMM d, yyyy')}
+                    {format(new Date(r.start_time), 'MMM d, yyyy')}
                   </span>
                 );
               }
@@ -369,7 +352,7 @@ export default function MyReservationsPage() {
           </p>
           {selectedReservation && (
             <div className="p-4 bg-gray-50 rounded-xl space-y-2 text-sm">
-              <p><strong>Date:</strong> {format(getPhilippinesDate(selectedReservation.start_time), 'EEEE, MMMM d, yyyy')}</p>
+              <p><strong>Date:</strong> {format(new Date(selectedReservation.start_time), 'EEEE, MMMM d, yyyy')}</p>
               <p><strong>Time:</strong> {formatTimeToAMPM(selectedReservation.start_time)} - {formatTimeToAMPM(selectedReservation.end_time)}</p>
             </div>
           )}
