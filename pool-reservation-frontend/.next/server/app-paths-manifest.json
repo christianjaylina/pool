@@ -1,6 +1,7 @@
 {
-  "/login/page": "app/login/page.js",
   "/page": "app/page.js",
+  "/admin/login/page": "app/admin/login/page.js",
   "/(user)/availability/page": "app/(user)/availability/page.js",
-  "/(user)/my-reservations/page": "app/(user)/my-reservations/page.js"
+  "/admin/(dashboard)/dashboard/page": "app/admin/(dashboard)/dashboard/page.js",
+  "/admin/(dashboard)/reservations/page": "app/admin/(dashboard)/reservations/page.js"
 }
