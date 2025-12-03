@@ -126,41 +126,100 @@ export default function HomePage() {
           {/* User Quick Actions - Only shown when logged in */}
           {user && (
             <div className="mt-12 grid sm:grid-cols-3 gap-6">
+              {/* Book a Pool - Primary Action */}
               <Link
                 href="/availability"
-                className="group bg-white/10 backdrop-blur-sm rounded-2xl p-6 border border-white/20 hover:bg-white/20 transition-all hover:scale-105"
+                className="group relative bg-gradient-to-br from-cyan-500/20 to-blue-600/20 backdrop-blur-sm rounded-2xl p-6 border border-cyan-400/30 hover:border-cyan-400/60 transition-all duration-300 hover:scale-[1.03] hover:shadow-[0_0_40px_rgba(34,211,238,0.3)] cursor-pointer overflow-hidden"
               >
-                <div className="w-14 h-14 bg-white/20 rounded-xl flex items-center justify-center mb-4 group-hover:bg-white/30 transition-colors">
-                  <CalendarDays className="h-7 w-7 text-white" />
+                {/* Animated background glow */}
+                <div className="absolute inset-0 bg-gradient-to-br from-cyan-400/0 to-cyan-400/0 group-hover:from-cyan-400/10 group-hover:to-blue-500/10 transition-all duration-500" />
+                
+                {/* Shine effect on hover */}
+                <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500">
+                  <div className="absolute inset-0 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000 bg-gradient-to-r from-transparent via-white/10 to-transparent" />
                 </div>
-                <h3 className="text-lg font-semibold text-white mb-2">Book a Pool</h3>
-                <p className="text-white/70 text-sm">
-                  View availability and make a new reservation for pool access.
-                </p>
+                
+                <div className="relative">
+                  <div className="w-16 h-16 bg-gradient-to-br from-cyan-400 to-blue-500 rounded-2xl flex items-center justify-center mb-4 shadow-lg group-hover:shadow-cyan-400/40 group-hover:scale-110 transition-all duration-300">
+                    <CalendarDays className="h-8 w-8 text-white" />
+                  </div>
+                  <h3 className="text-xl font-bold text-white mb-2 group-hover:text-cyan-200 transition-colors">Book a Pool</h3>
+                  <p className="text-white/70 text-sm group-hover:text-white/90 transition-colors">
+                    View availability and make a new reservation for pool access.
+                  </p>
+                  
+                  {/* Click indicator */}
+                  <div className="mt-4 flex items-center gap-2 text-cyan-300 text-sm font-medium opacity-0 group-hover:opacity-100 translate-y-2 group-hover:translate-y-0 transition-all duration-300">
+                    <span>Reserve Now</span>
+                    <svg className="w-4 h-4 group-hover:translate-x-1 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
+                    </svg>
+                  </div>
+                </div>
               </Link>
+
+              {/* My Reservations */}
               <Link
                 href="/my-reservations"
-                className="group bg-white/10 backdrop-blur-sm rounded-2xl p-6 border border-white/20 hover:bg-white/20 transition-all hover:scale-105"
+                className="group relative bg-gradient-to-br from-violet-500/20 to-purple-600/20 backdrop-blur-sm rounded-2xl p-6 border border-violet-400/30 hover:border-violet-400/60 transition-all duration-300 hover:scale-[1.03] hover:shadow-[0_0_40px_rgba(167,139,250,0.3)] cursor-pointer overflow-hidden"
               >
-                <div className="w-14 h-14 bg-white/20 rounded-xl flex items-center justify-center mb-4 group-hover:bg-white/30 transition-colors">
-                  <History className="h-7 w-7 text-white" />
+                {/* Animated background glow */}
+                <div className="absolute inset-0 bg-gradient-to-br from-violet-400/0 to-violet-400/0 group-hover:from-violet-400/10 group-hover:to-purple-500/10 transition-all duration-500" />
+                
+                {/* Shine effect on hover */}
+                <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500">
+                  <div className="absolute inset-0 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000 bg-gradient-to-r from-transparent via-white/10 to-transparent" />
                 </div>
-                <h3 className="text-lg font-semibold text-white mb-2">My Reservations</h3>
-                <p className="text-white/70 text-sm">
-                  View and manage your upcoming and past pool reservations.
-                </p>
+                
+                <div className="relative">
+                  <div className="w-16 h-16 bg-gradient-to-br from-violet-400 to-purple-500 rounded-2xl flex items-center justify-center mb-4 shadow-lg group-hover:shadow-violet-400/40 group-hover:scale-110 transition-all duration-300">
+                    <History className="h-8 w-8 text-white" />
+                  </div>
+                  <h3 className="text-xl font-bold text-white mb-2 group-hover:text-violet-200 transition-colors">My Reservations</h3>
+                  <p className="text-white/70 text-sm group-hover:text-white/90 transition-colors">
+                    View and manage your upcoming and past pool reservations.
+                  </p>
+                  
+                  {/* Click indicator */}
+                  <div className="mt-4 flex items-center gap-2 text-violet-300 text-sm font-medium opacity-0 group-hover:opacity-100 translate-y-2 group-hover:translate-y-0 transition-all duration-300">
+                    <span>View History</span>
+                    <svg className="w-4 h-4 group-hover:translate-x-1 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
+                    </svg>
+                  </div>
+                </div>
               </Link>
+
+              {/* Feedback */}
               <Link
                 href="/feedback"
-                className="group bg-white/10 backdrop-blur-sm rounded-2xl p-6 border border-white/20 hover:bg-white/20 transition-all hover:scale-105"
+                className="group relative bg-gradient-to-br from-amber-500/20 to-orange-600/20 backdrop-blur-sm rounded-2xl p-6 border border-amber-400/30 hover:border-amber-400/60 transition-all duration-300 hover:scale-[1.03] hover:shadow-[0_0_40px_rgba(251,191,36,0.3)] cursor-pointer overflow-hidden"
               >
-                <div className="w-14 h-14 bg-white/20 rounded-xl flex items-center justify-center mb-4 group-hover:bg-white/30 transition-colors">
-                  <MessageSquare className="h-7 w-7 text-white" />
+                {/* Animated background glow */}
+                <div className="absolute inset-0 bg-gradient-to-br from-amber-400/0 to-amber-400/0 group-hover:from-amber-400/10 group-hover:to-orange-500/10 transition-all duration-500" />
+                
+                {/* Shine effect on hover */}
+                <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500">
+                  <div className="absolute inset-0 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000 bg-gradient-to-r from-transparent via-white/10 to-transparent" />
                 </div>
-                <h3 className="text-lg font-semibold text-white mb-2">Feedback</h3>
-                <p className="text-white/70 text-sm">
-                  Share your experience and help us improve our service.
-                </p>
+                
+                <div className="relative">
+                  <div className="w-16 h-16 bg-gradient-to-br from-amber-400 to-orange-500 rounded-2xl flex items-center justify-center mb-4 shadow-lg group-hover:shadow-amber-400/40 group-hover:scale-110 transition-all duration-300">
+                    <MessageSquare className="h-8 w-8 text-white" />
+                  </div>
+                  <h3 className="text-xl font-bold text-white mb-2 group-hover:text-amber-200 transition-colors">Feedback</h3>
+                  <p className="text-white/70 text-sm group-hover:text-white/90 transition-colors">
+                    Share your experience and help us improve our service.
+                  </p>
+                  
+                  {/* Click indicator */}
+                  <div className="mt-4 flex items-center gap-2 text-amber-300 text-sm font-medium opacity-0 group-hover:opacity-100 translate-y-2 group-hover:translate-y-0 transition-all duration-300">
+                    <span>Send Feedback</span>
+                    <svg className="w-4 h-4 group-hover:translate-x-1 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
+                    </svg>
+                  </div>
+                </div>
               </Link>
             </div>
           )}

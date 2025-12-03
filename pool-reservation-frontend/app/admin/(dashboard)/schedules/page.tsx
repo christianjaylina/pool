@@ -289,10 +289,6 @@ export default function AdminSchedulesPage() {
           <h1 className="text-2xl font-bold text-gray-900">Pool Schedules</h1>
           <p className="text-gray-500 mt-1">Manage pool availability and blocked time slots</p>
         </div>
-        <Button onClick={() => setShowBlockModal(true)}>
-          <Plus className="h-4 w-4" />
-          Block Time Slot
-        </Button>
       </div>
 
       <div className="grid lg:grid-cols-3 gap-6">
@@ -360,53 +356,17 @@ export default function AdminSchedulesPage() {
               })}
             </div>
 
-            {/* Blocked Slots for Date */}
-            {blockedForDate.length > 0 && (
-              <div>
-                <h4 className="font-medium text-gray-900 mb-3">Blocked Time Slots</h4>
-                <div className="space-y-2">
-                  {blockedForDate.map((slot) => (
-                    <div
-                      key={slot.blocked_id}
-                      className="flex items-center justify-between p-3 bg-danger-50 rounded-lg border border-danger-100"
-                    >
-                      <div className="flex items-center gap-3">
-                        <Lock className="h-5 w-5 text-danger-500" />
-                        <div>
-                          <p className="font-medium text-gray-900">
-                            {formatTimeAMPM(extractTime(slot.blocked_start_time))} - {formatTimeAMPM(extractTime(slot.blocked_end_time))}
-                          </p>
-                          <p className="text-sm text-gray-600">{slot.reason}</p>
-                        </div>
-                      </div>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="text-danger-600 hover:bg-danger-100"
-                        onClick={() => openDeleteConfirmation(slot)}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {blockedForDate.length === 0 && (
-              <div className="text-center py-8 text-gray-500">
-                <Unlock className="h-12 w-12 mx-auto mb-3 text-gray-300" />
-                <p>No blocked time slots for this date</p>
-                <p className="text-sm">All time slots are available for reservations</p>
-              </div>
-            )}
           </Card>
 
           {/* All Blocked Slots */}
           <Card>
             <CardHeader
               title="All Blocked Slots"
-              subtitle={`${blockedSlots.length} total blocked periods`}
+              subtitle={`${blockedSlots.filter(slot => {
+                const slotDateStr = extractDate(slot.blocked_start_time);
+                const today = format(new Date(), 'yyyy-MM-dd');
+                return slotDateStr >= today;
+              }).length} upcoming blocked periods`}
               action={
                 <Button variant="outline" size="sm" onClick={fetchBlockedSlots}>
                   <RefreshCw className="h-4 w-4 mr-1" />
@@ -414,14 +374,22 @@ export default function AdminSchedulesPage() {
                 </Button>
               }
             />
-            {blockedSlots.length === 0 ? (
+            {blockedSlots.filter(slot => {
+              const slotDateStr = extractDate(slot.blocked_start_time);
+              const today = format(new Date(), 'yyyy-MM-dd');
+              return slotDateStr >= today;
+            }).length === 0 ? (
               <div className="text-center py-8 text-gray-500">
                 <Unlock className="h-12 w-12 mx-auto mb-3 text-gray-300" />
-                <p>No blocked slots</p>
+                <p>No upcoming blocked slots</p>
               </div>
             ) : (
               <div className="space-y-2">
-                {blockedSlots.map((slot) => {
+                {blockedSlots.filter(slot => {
+                  const slotDateStr = extractDate(slot.blocked_start_time);
+                  const today = format(new Date(), 'yyyy-MM-dd');
+                  return slotDateStr >= today;
+                }).map((slot) => {
                   // Format date without timezone conversion
                   const dateStr = extractDate(slot.blocked_start_time);
                   const [year, month, day] = dateStr.split('-').map(Number);

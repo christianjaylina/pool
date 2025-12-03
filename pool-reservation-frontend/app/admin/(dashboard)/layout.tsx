@@ -37,8 +37,9 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   return (
     <div className="min-h-screen bg-gray-100">
       <Sidebar onLogout={logout} />
-      <main className="ml-16 lg:ml-64 transition-all duration-300">
-        <div className="p-6 lg:p-8">
+      {/* Main content - responsive margins for mobile header and desktop sidebar */}
+      <main className="pt-14 lg:pt-0 lg:ml-16 transition-all duration-300">
+        <div className="p-4 sm:p-6 lg:p-8">
           {children}
         </div>
       </main>
