@@ -6,8 +6,20 @@ import { usePathname } from 'next/navigation';
 import { Bell, LogOut, User, Menu, X, Check, CheckCheck, Calendar, Info, AlertCircle } from 'lucide-react';
 import { useState, useEffect, useRef } from 'react';
 import { cn } from '@/lib/utils';
-import { format } from 'date-fns';
 import { useNotifications } from '@/contexts/NotificationContext';
+
+// Format timestamp in Philippines timezone
+const formatPHTime = (dateString: string) => {
+  const date = new Date(dateString);
+  return date.toLocaleString('en-US', {
+    timeZone: 'Asia/Manila',
+    month: 'short',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+    hour12: true
+  });
+};
 
 interface NavbarProps {
   user?: {
@@ -172,7 +184,7 @@ export default function Navbar({ user, onLogout }: NavbarProps) {
                                     </p>
                                     <p className="text-xs text-gray-600 mt-0.5 line-clamp-2">{notification.message}</p>
                                     <p className="text-xs text-gray-400 mt-1">
-                                      {format(new Date(notification.created_at), 'MMM d, h:mm a')}
+                                      {formatPHTime(notification.created_at)}
                                     </p>
                                   </div>
                                 </div>
@@ -253,7 +265,7 @@ export default function Navbar({ user, onLogout }: NavbarProps) {
                                     </div>
                                     <p className="text-xs text-gray-600 mt-0.5 line-clamp-2">{notification.message}</p>
                                     <p className="text-xs text-gray-400 mt-1">
-                                      {format(new Date(notification.created_at), 'MMM d, h:mm a')}
+                                      {formatPHTime(notification.created_at)}
                                     </p>
                                   </div>
                                 </div>

@@ -6,6 +6,25 @@ import { Check, X, RefreshCw, Ban, Users, Plus, Clock } from 'lucide-react';
 import { Card, CardHeader, Table, Badge, Button, Modal } from '@/components/ui';
 import { reservationsApi, usersApi } from '@/lib/api';
 
+// Format timestamp in Philippines timezone
+const formatPHDateTime = (dateString: string, formatStr: 'date' | 'time' | 'both') => {
+  const date = new Date(dateString);
+  const options: Intl.DateTimeFormatOptions = { timeZone: 'Asia/Manila' };
+  
+  if (formatStr === 'date' || formatStr === 'both') {
+    options.month = 'short';
+    options.day = 'numeric';
+    options.year = 'numeric';
+  }
+  if (formatStr === 'time' || formatStr === 'both') {
+    options.hour = 'numeric';
+    options.minute = '2-digit';
+    options.hour12 = true;
+  }
+  
+  return date.toLocaleString('en-US', options);
+};
+
 interface Reservation {
   reservation_id: number;
   user_id: number;
@@ -313,7 +332,6 @@ export default function AdminReservationsPage() {
             { 
               key: 'date', 
               header: 'Date', 
-              sortable: true,
               render: (r) => {
                 const past = isReservationPast(r.end_time);
                 return (
@@ -366,13 +384,12 @@ export default function AdminReservationsPage() {
               sortable: true,
               render: (r) => {
                 const past = isReservationPast(r.end_time);
-                const requestedDate = new Date(r.created_at);
                 return (
                   <div className={`flex items-center gap-1.5 ${past ? 'text-gray-400' : 'text-gray-600'}`}>
                     <Clock className="h-3.5 w-3.5" />
                     <span className="text-xs">
-                      {format(requestedDate, 'MMM d, yyyy')}<br />
-                      {format(requestedDate, 'h:mm a')}
+                      {formatPHDateTime(r.created_at, 'date')}<br />
+                      {formatPHDateTime(r.created_at, 'time')}
                     </span>
                   </div>
                 );

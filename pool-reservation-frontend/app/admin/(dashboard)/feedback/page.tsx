@@ -1,11 +1,24 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { format } from 'date-fns';
 import { Star, MessageSquare, Filter, RefreshCw } from 'lucide-react';
 import { Card, CardHeader, Badge, Select, StatCard, Button } from '@/components/ui';
 import { cn } from '@/lib/utils';
 import { feedbackApi } from '@/lib/api';
+
+// Format timestamp in Philippines timezone
+const formatPHTime = (dateString: string) => {
+  const date = new Date(dateString);
+  return date.toLocaleString('en-US', {
+    timeZone: 'Asia/Manila',
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+    hour12: true
+  });
+};
 
 interface Feedback {
   feedback_id: number;
@@ -183,7 +196,7 @@ export default function AdminFeedbackPage() {
                     {renderStars(item.rating)}
                     <p className="text-gray-600 mt-2">{item.message}</p>
                     <p className="text-sm text-gray-400 mt-2">
-                      {format(new Date(item.created_at), 'MMM d, yyyy • h:mm a')}
+                      {formatPHTime(item.created_at)}
                     </p>
                   </div>
                 </div>

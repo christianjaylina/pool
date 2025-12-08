@@ -50,6 +50,10 @@ export const authApi = {
     api.post('/auth/login', credentials),
   register: (userData: { fName: string; lName: string; email: string; password: string }) =>
     api.post('/auth/register', userData),
+  sendVerification: (data: { email: string; fName?: string }) =>
+    api.post('/auth/send-verification', data),
+  verifyEmail: (data: { email: string; code: string }) =>
+    api.post('/auth/verify-email', data),
   forgotPassword: (email: string) =>
     api.post('/auth/forgot-password', { email }),
   resetPassword: (token: string, newPassword: string) =>

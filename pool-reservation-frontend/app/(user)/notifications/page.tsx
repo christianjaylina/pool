@@ -1,10 +1,23 @@
 'use client';
 
-import { format } from 'date-fns';
 import { Bell, Check, CheckCheck, Calendar, Info, AlertCircle, X, Loader2 } from 'lucide-react';
 import { Card, CardHeader, Button, Badge } from '@/components/ui';
 import { useNotifications } from '@/contexts/NotificationContext';
 import { useState } from 'react';
+
+// Format timestamp in Philippines timezone
+const formatPHTime = (dateString: string) => {
+  const date = new Date(dateString);
+  return date.toLocaleString('en-US', {
+    timeZone: 'Asia/Manila',
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+    hour12: true
+  });
+};
 
 export default function NotificationsPage() {
   const { notifications, unreadCount, markAsRead, markAllAsRead, loadMore, isLoading, pagination } = useNotifications();
@@ -112,7 +125,7 @@ export default function NotificationsPage() {
                       </h3>
                       <p className="text-sm text-gray-600 mt-1">{notification.message}</p>
                       <p className="text-xs text-gray-400 mt-2">
-                        {format(new Date(notification.created_at), 'MMM d, yyyy • h:mm a')}
+                        {formatPHTime(notification.created_at)}
                       </p>
                     </div>
                     {!notification.read && (

@@ -7,7 +7,132 @@ const auth = require('../middleware/auth'); // Renter auth middleware
 const crypto = require('crypto');
 const { sendEmailNotification } = require('../services/notificationService');
 
-// Route for Renter Registration
+// In-memory store for pending verifications (for production, use Redis or database)
+const pendingVerifications = new Map();
+
+// Cleanup expired verifications every 10 minutes
+setInterval(() => {
+    const now = Date.now();
+    for (const [email, data] of pendingVerifications.entries()) {
+        if (now > data.expiresAt) {
+            pendingVerifications.delete(email);
+        }
+    }
+}, 10 * 60 * 1000);
+
+// Generate a 6-digit verification code
+const generateVerificationCode = () => {
+    return Math.floor(100000 + Math.random() * 900000).toString();
+};
+
+// Route to send verification code to email
+router.post('/send-verification', async (req, res) => {
+    const { email, fName } = req.body;
+
+    if (!email) {
+        return res.status(400).json({ message: 'Email is required.' });
+    }
+
+    try {
+        // Check if email already registered
+        const [existingUser] = await db.query('SELECT user_id FROM users WHERE email = ?', [email]);
+        if (existingUser.length > 0) {
+            return res.status(409).json({ message: 'An account with this email already exists.' });
+        }
+
+        // Generate verification code
+        const code = generateVerificationCode();
+        const expiresAt = Date.now() + 10 * 60 * 1000; // 10 minutes expiry
+
+        // Store pending verification
+        pendingVerifications.set(email, {
+            code,
+            expiresAt,
+            attempts: 0
+        });
+
+        // Send verification email
+        const htmlContent = `
+            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+                <div style="background: linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%); padding: 30px; text-align: center;">
+                    <img src="https://pool-reservation.vercel.app/images/logo/logo.png" alt="Luxuria Bacaca Resort" style="width: 80px; height: 80px; border-radius: 16px; margin-bottom: 15px;" />
+                    <h1 style="color: white; margin: 0;">Luxuria Bacaca Resort</h1>
+                </div>
+                <div style="padding: 30px; background: #f8fafc;">
+                    <h2 style="color: #1e293b; margin-top: 0;">Verify Your Email</h2>
+                    <p style="color: #475569;">Hi${fName ? ' ' + fName : ''},</p>
+                    <p style="color: #475569;">Thank you for registering! Please use the verification code below to complete your registration:</p>
+                    <div style="background: white; border: 2px dashed #0ea5e9; padding: 20px; text-align: center; margin: 20px 0; border-radius: 8px;">
+                        <span style="font-size: 32px; font-weight: bold; letter-spacing: 8px; color: #0ea5e9;">${code}</span>
+                    </div>
+                    <p style="color: #475569;">This code will expire in <strong>10 minutes</strong>.</p>
+                    <p style="color: #64748b; font-size: 14px;">If you didn't request this code, please ignore this email.</p>
+                </div>
+                <div style="padding: 20px; text-align: center; color: #94a3b8; font-size: 12px;">
+                    <p>© ${new Date().getFullYear()} Luxuria Bacaca Resort. All rights reserved.</p>
+                </div>
+            </div>
+        `;
+
+        const emailResult = await sendEmailNotification(email, 'Verify Your Email - Luxuria Bacaca Resort', htmlContent);
+        
+        if (!emailResult.success) {
+            console.error('Email send failed:', emailResult.error);
+            // Still store verification for testing purposes, but warn user
+            return res.status(500).json({ message: 'Failed to send verification email. Please check your email address and try again.' });
+        }
+
+        res.status(200).json({ message: 'Verification code sent to your email.' });
+
+    } catch (error) {
+        console.error('Send verification error:', error);
+        res.status(500).json({ message: 'Failed to send verification code. Please try again.' });
+    }
+});
+
+// Route to verify email code
+router.post('/verify-email', async (req, res) => {
+    const { email, code } = req.body;
+
+    if (!email || !code) {
+        return res.status(400).json({ message: 'Email and verification code are required.' });
+    }
+
+    const pending = pendingVerifications.get(email);
+
+    if (!pending) {
+        return res.status(400).json({ message: 'No verification pending for this email. Please request a new code.' });
+    }
+
+    // Check if expired
+    if (Date.now() > pending.expiresAt) {
+        pendingVerifications.delete(email);
+        return res.status(400).json({ message: 'Verification code has expired. Please request a new code.' });
+    }
+
+    // Check attempts (max 5)
+    if (pending.attempts >= 5) {
+        pendingVerifications.delete(email);
+        return res.status(429).json({ message: 'Too many failed attempts. Please request a new code.' });
+    }
+
+    // Verify code
+    if (pending.code !== code) {
+        pending.attempts++;
+        return res.status(400).json({ message: 'Invalid verification code. Please try again.' });
+    }
+
+    // Code is valid - mark as verified
+    pendingVerifications.set(email, {
+        ...pending,
+        verified: true,
+        verifiedAt: Date.now()
+    });
+
+    res.status(200).json({ message: 'Email verified successfully.', verified: true });
+});
+
+// Route for Renter Registration (now requires email verification)
 router.post('/register', async (req, res) => {
     const { fName, lName, email, password } = req.body;
     const role = 'renter'; // Default role is renter
@@ -18,6 +143,18 @@ router.post('/register', async (req, res) => {
     }
 
     try {
+        // Check if email was verified
+        const pending = pendingVerifications.get(email);
+        if (!pending || !pending.verified) {
+            return res.status(400).json({ message: 'Email must be verified before registration.' });
+        }
+
+        // Check if verification is still valid (within 30 minutes of verification)
+        if (Date.now() - pending.verifiedAt > 30 * 60 * 1000) {
+            pendingVerifications.delete(email);
+            return res.status(400).json({ message: 'Verification expired. Please verify your email again.' });
+        }
+
         // 1. Check if user already exists
         const [existingUser] = await db.query('SELECT user_id FROM users WHERE email = ?', [email]);
         
@@ -35,6 +172,9 @@ router.post('/register', async (req, res) => {
             VALUES (?, ?, ?, ?, ?)
         `;
         const [result] = await db.query(sql, [fName, lName, email, hashedPassword, role]);
+
+        // 4. Clean up verification data
+        pendingVerifications.delete(email);
 
         // Success response
         res.status(201).json({

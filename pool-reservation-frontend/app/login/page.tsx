@@ -1,22 +1,32 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { Eye, EyeOff } from 'lucide-react';
+import { useSearchParams } from 'next/navigation';
+import { Eye, EyeOff, Clock } from 'lucide-react';
 import { Button, Input, Card } from '@/components/ui';
 import { authApi } from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
 
 export default function LoginPage() {
   const { login } = useAuth();
+  const searchParams = useSearchParams();
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [inactivityMessage, setInactivityMessage] = useState(false);
   const [formData, setFormData] = useState({
     email: '',
     password: '',
   });
+
+  // Check if redirected due to inactivity
+  useEffect(() => {
+    if (searchParams.get('reason') === 'inactivity') {
+      setInactivityMessage(true);
+    }
+  }, [searchParams]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -58,6 +68,13 @@ export default function LoginPage() {
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-5">
+            {inactivityMessage && (
+              <div className="p-3 rounded-lg bg-warning-50 text-warning-700 text-sm flex items-center gap-2">
+                <Clock className="h-4 w-4 flex-shrink-0" />
+                <span>You were logged out due to 15 minutes of inactivity. Please sign in again.</span>
+              </div>
+            )}
+
             {error && (
               <div className="p-3 rounded-lg bg-danger-50 text-danger-600 text-sm">
                 {error}

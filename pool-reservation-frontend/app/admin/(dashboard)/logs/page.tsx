@@ -1,10 +1,23 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { format } from 'date-fns';
 import { FileText, Filter, Download, User, Calendar, Settings, UserCheck, RefreshCw } from 'lucide-react';
 import { Card, CardHeader, Table, Badge, Button, Select } from '@/components/ui';
 import { logsApi } from '@/lib/api';
+
+// Format timestamp in Philippines timezone
+const formatPHTime = (dateString: string) => {
+  const date = new Date(dateString);
+  return date.toLocaleString('en-US', {
+    timeZone: 'Asia/Manila',
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+    hour12: true
+  });
+};
 
 interface LogEntry {
   log_id: number;
@@ -154,7 +167,7 @@ export default function AdminLogsPage() {
                     <div className="flex flex-col sm:items-end gap-2 sm:flex-shrink-0">
                       {getTypeBadge(logType)}
                       <p className="text-xs text-gray-400">
-                        {format(new Date(log.created_at), 'MMM d, yyyy • h:mm a')}
+                        {formatPHTime(log.created_at)}
                       </p>
                     </div>
                   </div>
