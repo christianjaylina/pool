@@ -5,9 +5,14 @@ import { Card, CardHeader, Button, Badge } from '@/components/ui';
 import { useNotifications } from '@/contexts/NotificationContext';
 import { useState } from 'react';
 
-// Format timestamp in Philippines timezone
+// Format timestamp - DB returns timestamps in PHT (UTC+8)
 const formatPHTime = (dateString: string) => {
-  const date = new Date(dateString);
+  // If the string doesn't have timezone info, treat it as PHT
+  let dateStr = dateString;
+  if (!dateString.includes('Z') && !dateString.includes('+') && !dateString.includes('T')) {
+    dateStr = dateString.replace(' ', 'T') + '+08:00';
+  }
+  const date = new Date(dateStr);
   return date.toLocaleString('en-US', {
     timeZone: 'Asia/Manila',
     month: 'short',
