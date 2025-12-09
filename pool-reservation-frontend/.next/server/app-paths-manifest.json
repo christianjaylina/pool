@@ -1,10 +1,5 @@
 {
-  "/admin/(dashboard)/swimming-lessons/page": "app/admin/(dashboard)/swimming-lessons/page.js",
-  "/admin/(dashboard)/logs/page": "app/admin/(dashboard)/logs/page.js",
-  "/admin/(dashboard)/settings/page": "app/admin/(dashboard)/settings/page.js",
-  "/admin/(dashboard)/reservations/page": "app/admin/(dashboard)/reservations/page.js",
-  "/admin/(dashboard)/feedback/page": "app/admin/(dashboard)/feedback/page.js",
-  "/admin/(dashboard)/users/page": "app/admin/(dashboard)/users/page.js",
-  "/admin/(dashboard)/schedules/page": "app/admin/(dashboard)/schedules/page.js",
-  "/admin/(dashboard)/dashboard/page": "app/admin/(dashboard)/dashboard/page.js"
+  "/page": "app/page.js",
+  "/login/page": "app/login/page.js",
+  "/(user)/availability/page": "app/(user)/availability/page.js"
 }

@@ -7,12 +7,17 @@ import { logsApi } from '@/lib/api';
 
 // Format timestamp - DB returns timestamps in PHT (UTC+8)
 const formatPHTime = (dateString: string) => {
-  // If the string doesn't have timezone info, treat it as PHT
-  let dateStr = dateString;
-  if (!dateString.includes('Z') && !dateString.includes('+') && !dateString.includes('T')) {
-    dateStr = dateString.replace(' ', 'T') + '+08:00';
+  let date: Date;
+  
+  if (dateString.includes('Z')) {
+    date = new Date(dateString);
+  } else if (dateString.includes('+')) {
+    date = new Date(dateString);
+  } else {
+    const normalized = dateString.replace(' ', 'T');
+    date = new Date(normalized + '+08:00');
   }
-  const date = new Date(dateStr);
+  
   return date.toLocaleString('en-US', {
     timeZone: 'Asia/Manila',
     month: 'short',

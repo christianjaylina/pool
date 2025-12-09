@@ -7,15 +7,22 @@ import { Card, CardHeader, Table, Badge, Button, Modal } from '@/components/ui';
 import { reservationsApi, usersApi } from '@/lib/api';
 
 // Format timestamp - DB returns timestamps in PHT (UTC+8)
-// We append +08:00 to tell JavaScript the timestamp is in PHT
+// Handle various formats: "2025-12-09 08:49:00" or "2025-12-09T08:49:00.000Z"
 const formatPHDateTime = (dateString: string, formatStr: 'date' | 'time' | 'both') => {
-  // If the string doesn't have timezone info, treat it as PHT
-  let dateStr = dateString;
-  if (!dateString.includes('Z') && !dateString.includes('+') && !dateString.includes('T')) {
-    // Convert "2025-12-09 08:49:00" to "2025-12-09T08:49:00+08:00"
-    dateStr = dateString.replace(' ', 'T') + '+08:00';
+  let date: Date;
+  
+  if (dateString.includes('Z')) {
+    // Already UTC - convert directly
+    date = new Date(dateString);
+  } else if (dateString.includes('+')) {
+    // Already has timezone info
+    date = new Date(dateString);
+  } else {
+    // No timezone info - treat as PHT (UTC+8)
+    const normalized = dateString.replace(' ', 'T');
+    date = new Date(normalized + '+08:00');
   }
-  const date = new Date(dateStr);
+  
   const options: Intl.DateTimeFormatOptions = { timeZone: 'Asia/Manila' };
   
   if (formatStr === 'date' || formatStr === 'both') {
