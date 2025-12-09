@@ -5,18 +5,9 @@ import { FileText, Filter, Download, User, Calendar, Settings, UserCheck, Refres
 import { Card, CardHeader, Table, Badge, Button, Select } from '@/components/ui';
 import { logsApi } from '@/lib/api';
 
-// Format timestamp - DB returns timestamps in PHT (UTC+8)
+// Format timestamp to Philippines timezone (UTC+8)
 const formatPHTime = (dateString: string) => {
-  let date: Date;
-  
-  if (dateString.includes('Z')) {
-    date = new Date(dateString);
-  } else if (dateString.includes('+')) {
-    date = new Date(dateString);
-  } else {
-    const normalized = dateString.replace(' ', 'T');
-    date = new Date(normalized + '+08:00');
-  }
+  const date = new Date(dateString);
   
   return date.toLocaleString('en-US', {
     timeZone: 'Asia/Manila',

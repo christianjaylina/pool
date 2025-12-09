@@ -12,7 +12,7 @@ const pool = mysql.createPool({
     waitForConnections: true,
     connectionLimit: 10,
     queueLimit: 0,
-    timezone: '+08:00', // Philippines timezone (Asia/Manila)
+    timezone: 'Z', // Return timestamps as UTC, frontend will convert to PHT
     // Enable SSL for TiDB Cloud (required for production)
     ssl: process.env.DB_SSL === 'true' ? {
         minVersion: 'TLSv1.2',

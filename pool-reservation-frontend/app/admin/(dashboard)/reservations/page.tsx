@@ -6,23 +6,11 @@ import { Check, X, RefreshCw, Ban, Users, Plus, Clock } from 'lucide-react';
 import { Card, CardHeader, Table, Badge, Button, Modal } from '@/components/ui';
 import { reservationsApi, usersApi } from '@/lib/api';
 
-// Format timestamp - DB returns timestamps in PHT (UTC+8)
-// Handle various formats: "2025-12-09 08:49:00" or "2025-12-09T08:49:00.000Z"
+// Format timestamp to Philippines timezone (UTC+8)
 const formatPHDateTime = (dateString: string, formatStr: 'date' | 'time' | 'both') => {
-  let date: Date;
+  const date = new Date(dateString);
   
-  if (dateString.includes('Z')) {
-    // Already UTC - convert directly
-    date = new Date(dateString);
-  } else if (dateString.includes('+')) {
-    // Already has timezone info
-    date = new Date(dateString);
-  } else {
-    // No timezone info - treat as PHT (UTC+8)
-    const normalized = dateString.replace(' ', 'T');
-    date = new Date(normalized + '+08:00');
-  }
-  
+  // Use Intl.DateTimeFormat with explicit Asia/Manila timezone
   const options: Intl.DateTimeFormatOptions = { timeZone: 'Asia/Manila' };
   
   if (formatStr === 'date' || formatStr === 'both') {
