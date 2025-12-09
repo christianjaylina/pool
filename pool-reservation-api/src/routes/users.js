@@ -98,7 +98,7 @@ router.put('/admin/max-guests/:id', adminAuth, async (req, res) => {
 
         // 3. Log the Admin action
         const limitText = maxGuests ? `${maxGuests} guests` : 'unlimited';
-        const adminAction = `set max guests limit to ${limitText} for ${user[0].fName} ${user[0].lName} (ID: ${id}).`;
+        const adminAction = `set max guests limit to ${limitText} for ${user[0].fName} ${user[0].lName}.`;
         await logAdminAction(req.user.id, adminAction);
 
         res.json({
@@ -129,7 +129,7 @@ router.put('/admin/status/:id', adminAuth, async (req, res) => {
 
     try {
         // 1. Ensure the target user exists and is a RENTER
-        const [user] = await db.query('SELECT role FROM users WHERE user_id = ?', [id]);
+        const [user] = await db.query('SELECT role, fName, lName FROM users WHERE user_id = ?', [id]);
         
         if (user.length === 0) {
             return res.status(404).json({ message: 'User not found.' });
@@ -146,7 +146,7 @@ router.put('/admin/status/:id', adminAuth, async (req, res) => {
 
         // 3. Log the Admin action
         const action = isActive ? 'activated' : 'deactivated';
-        const adminAction = `${action} renter account ID ${id}.`;
+        const adminAction = `${action} renter account: ${user[0].fName} ${user[0].lName}.`;
         await logAdminAction(req.user.id, adminAction);
 
         res.json({
@@ -233,7 +233,7 @@ router.put('/admin/update/:id', adminAuth, async (req, res) => {
         if (email && email !== oldUser.email) changes.push(`email: "${oldUser.email}" → "${email}"`);
         
         if (changes.length > 0) {
-            const adminAction = `updated user ${oldUser.fName} ${oldUser.lName} (ID: ${id}): ${changes.join(', ')}.`;
+            const adminAction = `updated ${oldUser.fName} ${oldUser.lName}: ${changes.join(', ')}.`;
             await logAdminAction(req.user.id, adminAction);
         }
 

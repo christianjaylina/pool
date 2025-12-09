@@ -675,7 +675,7 @@ router.put('/admin/status/:id', adminAuth, async (req, res) => {
         );
         
         // 5. Log the Admin action
-        const adminAction = `${newStatus} reservation ${id} for user ${reservation[0].user_id}.`;
+        const adminAction = `${newStatus} reservation for ${renter.fName} ${renter.lName} on ${startTime}.`;
         await logAdminAction(req.user.id, adminAction);
         
         res.json({ 
@@ -736,7 +736,14 @@ router.post('/admin/block', adminAuth, async (req, res) => {
         // TO DO: Send automated notification to renters who may have been impacted
         
         // ** INTEGRATION POINT: Log the Admin Action **
-        const blockAction = `Blocked time from ${blockedStart} to ${blockedEnd}. Reason: ${reason}`;
+        const formattedBlockStart = new Date(blockedStart).toLocaleString('en-US', { 
+            month: 'short', day: 'numeric', year: 'numeric', 
+            hour: 'numeric', minute: '2-digit', hour12: true 
+        });
+        const formattedBlockEnd = new Date(blockedEnd).toLocaleString('en-US', { 
+            hour: 'numeric', minute: '2-digit', hour12: true 
+        });
+        const blockAction = `Blocked time: ${formattedBlockStart} - ${formattedBlockEnd}. Reason: ${reason}`;
         await logAdminAction(adminUserId, blockAction);
 
         res.status(201).json({
@@ -803,7 +810,14 @@ router.delete('/admin/blocked/:id', adminAuth, async (req, res) => {
 
         // Log the action
         const block = existing[0];
-        const unblockAction = `Removed block from ${block.blocked_start_time} to ${block.blocked_end_time}.`;
+        const formattedStart = new Date(block.blocked_start_time).toLocaleString('en-US', { 
+            month: 'short', day: 'numeric', year: 'numeric', 
+            hour: 'numeric', minute: '2-digit', hour12: true 
+        });
+        const formattedEnd = new Date(block.blocked_end_time).toLocaleString('en-US', { 
+            hour: 'numeric', minute: '2-digit', hour12: true 
+        });
+        const unblockAction = `Removed block: ${formattedStart} - ${formattedEnd}.`;
         await logAdminAction(adminUserId, unblockAction);
 
         res.json({ message: 'Blocked slot removed successfully.' });
@@ -950,7 +964,7 @@ router.put('/admin/cancel/:id', adminAuth, async (req, res) => {
         );
         
         // 6. Log the Admin action
-        const adminAction = `Cancelled approved reservation ${id} for user ${renter.fName} ${renter.lName}. Reason: ${reason}`;
+        const adminAction = `Cancelled reservation for ${renter.fName} ${renter.lName} on ${formattedTime}. Reason: ${reason}`;
         await logAdminAction(adminUserId, adminAction);
         
         res.json({ 
@@ -1185,7 +1199,14 @@ router.post('/admin/create', adminAuth, async (req, res) => {
         }
 
         // 6. Log the admin action
-        const adminAction = `created reservation (ID: ${result.insertId}) on behalf of user ${targetUser.fName} ${targetUser.lName} (ID: ${userId}) for ${startDateTime} to ${endDateTime}`;
+        const formattedStart = new Date(startDateTime).toLocaleString('en-US', { 
+            month: 'short', day: 'numeric', year: 'numeric', 
+            hour: 'numeric', minute: '2-digit', hour12: true 
+        });
+        const formattedEnd = new Date(endDateTime).toLocaleString('en-US', { 
+            hour: 'numeric', minute: '2-digit', hour12: true 
+        });
+        const adminAction = `created reservation for ${targetUser.fName} ${targetUser.lName}: ${formattedStart} - ${formattedEnd}`;
         await logAdminAction(adminId, adminAction);
 
         // 7. Send notification email to the user
@@ -1552,7 +1573,10 @@ router.post('/admin/swimming-lessons', adminAuth, async (req, res) => {
         );
 
         // Log the admin action
-        const action = `created swimming lesson for ${date} (${startTime}-${endTime}) with ${participantCount} participants.`;
+        const formattedDate = new Date(date).toLocaleDateString('en-US', { 
+            month: 'short', day: 'numeric', year: 'numeric'
+        });
+        const action = `created swimming lesson for ${formattedDate} (${startTime}-${endTime}) with ${participantCount} participants.`;
         await logAdminAction(adminId, action);
 
         res.status(201).json({
@@ -1597,7 +1621,10 @@ router.delete('/admin/swimming-lessons/:id', adminAuth, async (req, res) => {
 
         // Log the admin action
         const lessonInfo = lesson[0];
-        const action = `deleted swimming lesson ID ${id} for ${lessonInfo.lesson_date} with ${lessonInfo.participants} participants.`;
+        const formattedDate = new Date(lessonInfo.lesson_date).toLocaleDateString('en-US', { 
+            month: 'short', day: 'numeric', year: 'numeric'
+        });
+        const action = `deleted swimming lesson for ${formattedDate} with ${lessonInfo.participants} participants.`;
         await logAdminAction(adminId, action);
 
         res.json({ message: 'Swimming lesson deleted successfully.' });
